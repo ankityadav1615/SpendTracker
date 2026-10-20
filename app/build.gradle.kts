@@ -1,9 +1,32 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
+}
+
+// Release signing comes from environment variables (CI) or a git-ignored keystore.properties at the
+// repository root. Without them the release build is produced unsigned.
+val keystoreProperties = Properties().apply {
+    providers.fileContents(rootProject.layout.projectDirectory.file("keystore.properties"))
+        .asText.orNull?.let { load(it.reader()) }
+}
+
+fun signingValue(environmentVariable: String, property: String): String? =
+    providers.environmentVariable(environmentVariable).orNull?.takeIf { it.isNotBlank() }
+        ?: keystoreProperties.getProperty(property)?.takeIf { it.isNotBlank() }
+
+val releaseKeystore = signingValue("SPENDTRACKER_KEYSTORE", "storeFile")
+val releaseKeystorePassword = signingValue("SPENDTRACKER_KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = signingValue("SPENDTRACKER_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = signingValue("SPENDTRACKER_KEY_PASSWORD", "keyPassword")
+val releaseSigningValues = listOf(releaseKeystore, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword)
+val hasReleaseSigning = releaseSigningValues.all { it != null }
+if (!hasReleaseSigning && releaseSigningValues.any { it != null }) {
+    logger.warn("Release signing is only partly configured; the release build will be unsigned.")
 }
 
 android {
@@ -14,13 +37,25 @@ android {
         applicationId = "com.spendtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = releaseKeystore?.let { rootProject.file(it) }
+            storePassword = releaseKeystorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -40,8 +75,36 @@ kotlin {
     }
 }
 
-ksp {
-    arg("room.generateKotlin", "true")
+/** Ships the repository's PRIVACY.md inside the app, so the in-app policy never drifts from the published one. */
+abstract class CopyPrivacyPolicy : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val policy: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val target = outputDir.get().asFile
+        target.deleteRecursively()
+        policy.get().asFile.copyTo(target.resolve("PRIVACY.md"))
+    }
+}
+
+val copyPrivacyPolicy = tasks.register<CopyPrivacyPolicy>("copyPrivacyPolicy") {
+    policy = rootProject.layout.projectDirectory.file("PRIVACY.md")
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyPrivacyPolicy, CopyPrivacyPolicy::outputDir)
+    }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
+    generateKotlin = true
 }
 
 dependencies {

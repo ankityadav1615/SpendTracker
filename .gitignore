@@ -13,3 +13,5 @@
 *.aab
 *.keystore
 *.jks
+keystore.properties
+/.impeccable/

@@ -2,6 +2,8 @@ package com.spendtracker
 
 import android.app.Application
 import com.spendtracker.data.AppDatabase
+import com.spendtracker.data.SettingsStore
+import com.spendtracker.data.SmsImportState
 import com.spendtracker.data.TransactionRepository
 import com.spendtracker.sms.SmsInboxImporter
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +15,8 @@ class SpendTrackerApplication : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val database by lazy { AppDatabase.create(this) }
-    val repository by lazy { TransactionRepository(database) }
-    val inboxImporter by lazy { SmsInboxImporter(this, repository) }
+    private val importState by lazy { SmsImportState(this) }
+    val repository by lazy { TransactionRepository(database, importState) }
+    val inboxImporter by lazy { SmsInboxImporter(this, repository, importState) }
+    val settings by lazy { SettingsStore(this) }
 }

@@ -46,6 +46,9 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET ignored = :ignored WHERE id = :id")
     suspend fun setIgnored(id: Long, ignored: Boolean)
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -55,9 +58,12 @@ interface CategoryRuleDao {
 
     @Upsert
     suspend fun upsert(rule: CategoryRule)
+
+    @Query("DELETE FROM category_rules")
+    suspend fun deleteAll()
 }
 
-@Database(entities = [Transaction::class, CategoryRule::class], version = 1, exportSchema = false)
+@Database(entities = [Transaction::class, CategoryRule::class], version = 1, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao

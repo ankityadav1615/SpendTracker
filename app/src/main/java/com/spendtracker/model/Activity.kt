@@ -1,0 +1,116 @@
+package com.spendtracker.model
+
+import com.spendtracker.data.Transaction
+import com.spendtracker.data.displayName
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+/** The chips on the Activity screen. */
+sealed interface ActivityFilter {
+    fun matches(transaction: Transaction): Boolean
+
+    /** Stable text form, for saving the selection across configuration changes. */
+    val key: String
+        get() = when (this) {
+            All -> "all"
+            MoneyOut -> "out"
+            MoneyIn -> "in"
+            is Of -> "category:" + category.name
+        }
+
+    val label: String
+        get() = when (this) {
+            All -> "All"
+            MoneyOut -> "Money out"
+            MoneyIn -> "Money in"
+            is Of -> category.label
+        }
+
+    companion object {
+        fun fromKey(key: String?): ActivityFilter = when {
+            key == MoneyOut.key -> MoneyOut
+            key == MoneyIn.key -> MoneyIn
+            key != null && key.startsWith("category:") ->
+                Category.entries.firstOrNull { it.name == key.removePrefix("category:") }?.let(::Of) ?: All
+            else -> All
+        }
+    }
+
+    data object All : ActivityFilter {
+        override fun matches(transaction: Transaction) = true
+    }
+
+    data object MoneyOut : ActivityFilter {
+        override fun matches(transaction: Transaction) = transaction.type == TransactionType.DEBIT
+    }
+
+    data object MoneyIn : ActivityFilter {
+        override fun matches(transaction: Transaction) = transaction.type == TransactionType.CREDIT
+    }
+
+    data class Of(val category: Category) : ActivityFilter {
+        override fun matches(transaction: Transaction) = transaction.category == category
+    }
+}
+
+data class DayGroup(
+    val date: LocalDate,
+    /** Money in minus money out for the day; own-account moves and card bills are left out. */
+    val netPaise: Long,
+    /** False when every entry of the day is an own-account move or card bill. */
+    val hasCounted: Boolean,
+    val transactions: List<Transaction>,
+)
+
+object Activity {
+
+    private val WEEKDAY_DAY_MONTH = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)
+    private val WEEKDAY_DAY_MONTH_YEAR = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.ENGLISH)
+
+    /** The filter chips for a period: the fixed ones, then each category present, largest total first. */
+    fun filtersFor(transactions: List<Transaction>): List<ActivityFilter> =
+        listOf(ActivityFilter.All, ActivityFilter.MoneyOut, ActivityFilter.MoneyIn) +
+            transactions.groupBy { it.category }
+                .entries
+                .sortedByDescending { (_, list) -> list.sumOf { it.amountPaise } }
+                .map { ActivityFilter.Of(it.key) }
+
+    /** Case-insensitive match against the payee, UPI ID, category, bank and account number. */
+    fun matchesQuery(transaction: Transaction, query: String): Boolean {
+        val words = query.trim().lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return true
+        val haystack = listOfNotNull(
+            transaction.displayName,
+            transaction.counterparty,
+            transaction.vpa,
+            transaction.category.label,
+            transaction.bank,
+            transaction.accountTail,
+        ).joinToString(" ").lowercase(Locale.ROOT)
+        return words.all { it in haystack }
+    }
+
+    /** Groups transactions (newest first) by day, keeping the order. */
+    fun byDay(transactions: List<Transaction>, zone: ZoneId = ZoneId.systemDefault()): List<DayGroup> =
+        transactions
+            .groupBy { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }
+            .map { (date, list) ->
+                val counted = list.filter { it.category.kind != CategoryKind.EXCLUDED }
+                DayGroup(
+                    date = date,
+                    netPaise = counted.sumOf { if (it.type == TransactionType.CREDIT) it.amountPaise else -it.amountPaise },
+                    hasCounted = counted.isNotEmpty(),
+                    transactions = list,
+                )
+            }
+
+    /** "Today, 20 Oct", "Yesterday, 19 Oct", "Thu, 1 Oct" or, in another year, "Tue, 30 Dec 2025". */
+    fun dayTitle(date: LocalDate, today: LocalDate): String = when (date) {
+        today -> "Today, " + DateRanges.date(date, today)
+        today.minusDays(1) -> "Yesterday, " + DateRanges.date(date, today)
+        else -> date.format(if (date.year == today.year) WEEKDAY_DAY_MONTH else WEEKDAY_DAY_MONTH_YEAR)
+    }
+}

@@ -1,5 +1,6 @@
 package com.spendtracker.parser
 
+import com.spendtracker.model.Category
 import com.spendtracker.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -272,5 +273,17 @@ class SmsParserTest {
     @Test
     fun ignoresPersonalSenders() {
         assertNull(SmsParser.parse("+919876543210", "Sent Rs.500.00 From HDFC Bank A/C *1234 To ABC On 20/10/24"))
+    }
+
+    @Test
+    fun onboardingExampleGivesTheEntryItShows() {
+        val body = "ICICI Bank Acct XX3485 debited for Rs 450.00 on 20-Oct-26; SWIGGY credited. UPI:629318840412."
+        val sms = parse(body, sender = "VM-ICICIB-S")
+        assertEquals(TransactionType.DEBIT, sms.type)
+        assertEquals(450_00L, sms.amountPaise)
+        assertEquals("Swiggy", sms.counterparty)
+        assertEquals("ICICI Bank", sms.bank)
+        assertEquals("3485", sms.accountTail)
+        assertEquals(Category.FOOD, Categorizer.categorize(sms, body))
     }
 }

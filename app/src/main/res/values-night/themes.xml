@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.SpendTracker" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#0F1512</item>
+        <item name="android:windowBackground">#1C1714</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">#1C1714</item>
     </style>
 </resources>
