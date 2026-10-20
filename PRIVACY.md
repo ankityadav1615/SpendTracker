@@ -20,6 +20,12 @@ For each SMS recognised as a transaction, the app saves in a local database on y
 
 If you hide a transaction, it is kept but marked as hidden, so it does not come back on the next scan. The app also keeps your settings, such as how your spending periods are shown and any budget you set, and notes when it last scanned your inbox.
 
+If you add an expense or income yourself, the app saves what you enter: the amount, the date, the category, and the name, payment method and note if you fill them in. These entries are stored in the same local database and are deleted the same way.
+
+## Downloaded reports
+
+When you download a report, the app creates a PDF or CSV file with the transactions and totals you chose, and saves it in the place you pick in Android's "save as" screen. If you pick a cloud folder such as Google Drive, that app uploads the file under its own privacy policy; SpendTracker itself still sends nothing. The app does not keep a copy and cannot see or delete the file afterwards; manage it like any other file on your phone.
+
 ## What the app does not do
 
 - **No internet.** The app does not have the internet permission, so it cannot send your data anywhere.
@@ -29,7 +35,7 @@ If you hide a transaction, it is kept but marked as hidden, so it does not come 
 
 ## Your choices
 
-- **Delete your data:** use the option to delete all data in the app's Settings, or uninstall the app. You can also clear it in Android **Settings → Apps → SpendTracker → Storage → Clear storage**. The SMS in your inbox are not changed.
+- **Delete your data:** use the option to delete all data in the app's Settings, or uninstall the app. You can also clear it in Android **Settings → Apps → SpendTracker → Storage → Clear storage**. The SMS in your inbox and any reports you downloaded are not changed.
 - **Stop SMS reading:** in the app, open **Settings → SMS access** and choose to stop reading SMS. To also take away the permission itself, go to Android **Settings → Apps → SpendTracker → Permissions → SMS**. The app then stops reading messages.
 
 ## Children

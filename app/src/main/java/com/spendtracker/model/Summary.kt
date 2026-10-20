@@ -20,7 +20,11 @@ data class Summary(
     val leftPaise: Long get() = incomePaise - spentPaise
 
     companion object {
-        fun of(transactions: List<Transaction>): Summary {
+        /**
+         * Totals for [transactions]. [cashCovered] (from [CashLedger.covered]) removes the part of each cash
+         * withdrawal already counted through cash spends the user added; fully used withdrawals drop out.
+         */
+        fun of(transactions: List<Transaction>, cashCovered: Map<Long, Long> = emptyMap()): Summary {
             var salary = 0L
             var otherIncome = 0L
             var spent = 0L
@@ -32,10 +36,12 @@ data class Summary(
                     txn.type == TransactionType.CREDIT ->
                         if (txn.category == Category.SALARY) salary += txn.amountPaise else otherIncome += txn.amountPaise
                     else -> {
-                        spent += txn.amountPaise
+                        val amount = CashLedger.countedPaise(txn, cashCovered)
+                        if (amount <= 0) continue
+                        spent += amount
                         val current = perCategory[txn.category] ?: CategoryTotal(txn.category, 0, 0)
                         perCategory[txn.category] = current.copy(
-                            amountPaise = current.amountPaise + txn.amountPaise,
+                            amountPaise = current.amountPaise + amount,
                             count = current.count + 1,
                         )
                     }
