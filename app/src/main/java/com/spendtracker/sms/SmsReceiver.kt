@@ -16,6 +16,9 @@ class SmsReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+        val app = context.applicationContext as SpendTrackerApplication
+        // Android may still grant the permission after the user stopped SMS reading inside the app.
+        if (!app.settings.current.smsConsent) return
         val parts = Telephony.Sms.Intents.getMessagesFromIntent(intent)?.filterNotNull().orEmpty()
         if (parts.isEmpty()) return
 
@@ -25,7 +28,6 @@ class SmsReceiver : BroadcastReceiver() {
             .groupBy { it.displayOriginatingAddress.orEmpty() }
             .map { (sender, list) -> RawSms(sender, list.joinToString("") { it.displayMessageBody.orEmpty() }, receivedAt) }
 
-        val app = context.applicationContext as SpendTrackerApplication
         val pending = goAsync()
         app.scope.launch {
             try {

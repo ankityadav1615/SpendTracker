@@ -5,8 +5,9 @@ import com.spendtracker.model.Category
 import com.spendtracker.parser.RawSms
 import com.spendtracker.parser.TransactionBuilder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.withLock
 
-class TransactionRepository(private val db: AppDatabase) {
+class TransactionRepository(private val db: AppDatabase, private val importState: SmsImportState) {
 
     private val transactionDao = db.transactionDao()
     private val ruleDao = db.categoryRuleDao()
@@ -42,4 +43,19 @@ class TransactionRepository(private val db: AppDatabase) {
 
     suspend fun setIgnored(transaction: Transaction, ignored: Boolean) =
         transactionDao.setIgnored(transaction.id, ignored)
+
+    /**
+     * Permanently deletes all transactions (hidden ones included) and remembered categories, and forgets
+     * how far the SMS inbox was imported, so the next import starts from scratch. A running inbox import
+     * finishes first.
+     */
+    suspend fun deleteAllData() {
+        importState.lock.withLock {
+            db.withTransaction {
+                transactionDao.deleteAll()
+                ruleDao.deleteAll()
+            }
+            importState.clear()
+        }
+    }
 }

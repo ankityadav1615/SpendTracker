@@ -12,25 +12,25 @@ enum class CategoryKind {
 }
 
 enum class Category(val label: String, val kind: CategoryKind, val color: Long) {
-    EMI("EMI & Loans", CategoryKind.SPEND, 0xFFE53935),
-    RENT("Rent", CategoryKind.SPEND, 0xFF8E24AA),
-    GROCERIES("Groceries", CategoryKind.SPEND, 0xFF43A047),
-    FUEL("Fuel", CategoryKind.SPEND, 0xFFFB8C00),
-    FOOD("Food & Dining", CategoryKind.SPEND, 0xFFF4511E),
-    BILLS("Bills & Recharges", CategoryKind.SPEND, 0xFF1E88E5),
-    SHOPPING("Shopping", CategoryKind.SPEND, 0xFFD81B60),
-    TRAVEL("Travel & Transport", CategoryKind.SPEND, 0xFF00ACC1),
-    HEALTH("Health", CategoryKind.SPEND, 0xFF00897B),
-    ENTERTAINMENT("Entertainment", CategoryKind.SPEND, 0xFF5E35B1),
-    INVESTMENTS("Savings & Investments", CategoryKind.SPEND, 0xFF3949AB),
-    CASH("Cash withdrawal", CategoryKind.SPEND, 0xFF6D4C41),
-    TRANSFERS("Sent to people", CategoryKind.SPEND, 0xFF546E7A),
-    DAILY("Daily & Misc", CategoryKind.SPEND, 0xFF757575),
-    SALARY("Salary", CategoryKind.INCOME, 0xFF2E7D32),
-    REFUND("Refunds & Cashback", CategoryKind.INCOME, 0xFF7CB342),
-    OTHER_INCOME("Other income", CategoryKind.INCOME, 0xFF26A69A),
-    SELF_TRANSFER("Own account transfer", CategoryKind.EXCLUDED, 0xFF90A4AE),
-    CARD_BILL("Credit card bill", CategoryKind.EXCLUDED, 0xFF78909C);
+    EMI("EMI & loans", CategoryKind.SPEND, 0xFF8A5F86),
+    RENT("Rent", CategoryKind.SPEND, 0xFFB9773F),
+    GROCERIES("Groceries", CategoryKind.SPEND, 0xFF6E8F55),
+    FUEL("Fuel", CategoryKind.SPEND, 0xFF4F7896),
+    FOOD("Food & dining", CategoryKind.SPEND, 0xFFC58A2E),
+    BILLS("Bills & recharges", CategoryKind.SPEND, 0xFF8C6A4F),
+    SHOPPING("Shopping", CategoryKind.SPEND, 0xFFB5597A),
+    TRAVEL("Travel & transport", CategoryKind.SPEND, 0xFF4D8A8A),
+    HEALTH("Health", CategoryKind.SPEND, 0xFFB5524A),
+    ENTERTAINMENT("Entertainment", CategoryKind.SPEND, 0xFF6B67A8),
+    INVESTMENTS("Savings & investments", CategoryKind.SPEND, 0xFF3F7F6E),
+    CASH("Cash withdrawal", CategoryKind.SPEND, 0xFF7A8B4F),
+    TRANSFERS("Sent to people", CategoryKind.SPEND, 0xFF7D7D7D),
+    DAILY("Daily spends", CategoryKind.SPEND, 0xFF8F7D63),
+    SALARY("Salary", CategoryKind.INCOME, 0xFF2F7A4B),
+    REFUND("Refunds & cashback", CategoryKind.INCOME, 0xFF5E9A6B),
+    OTHER_INCOME("Money received", CategoryKind.INCOME, 0xFF3F8C77),
+    SELF_TRANSFER("Own account transfer", CategoryKind.EXCLUDED, 0xFF8A8A8A),
+    CARD_BILL("Credit card bill", CategoryKind.EXCLUDED, 0xFF6F7A86);
 
     companion object {
         /** Categories that make sense for a transaction of the given direction. */
