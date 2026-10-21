@@ -92,7 +92,11 @@ private enum class Tab(val label: String, @param:DrawableRes val icon: Int) {
 }
 
 @Composable
-fun SpendTrackerApp(viewModel: MainViewModel = viewModel()) {
+fun SpendTrackerApp(
+    viewModel: MainViewModel = viewModel(),
+    shortcutAction: String? = null,
+    onShortcutActionHandled: () -> Unit = {},
+) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var hasPermission by remember { mutableStateOf(SmsPermission.granted(context)) }
@@ -161,6 +165,8 @@ fun SpendTrackerApp(viewModel: MainViewModel = viewModel()) {
             onOpenAppSettings = openAppSettings,
             onOpenDocument = { document = it },
             onRequestNotificationPermission = requestNotificationPermissionIfNeeded,
+            shortcutAction = shortcutAction,
+            onShortcutActionHandled = onShortcutActionHandled,
         )
     }
 }
@@ -204,6 +210,8 @@ private fun MainScreens(
     onOpenAppSettings: () -> Unit,
     onOpenDocument: (AppDocument) -> Unit,
     onRequestNotificationPermission: () -> Unit,
+    shortcutAction: String? = null,
+    onShortcutActionHandled: () -> Unit = {},
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val money by viewModel.money.collectAsStateWithLifecycle()
@@ -270,6 +278,15 @@ private fun MainScreens(
         editId = null
         entryType = type
         entryOpen = true
+    }
+
+    // A launcher shortcut ("Add expense"/"Add income") opens straight into the entry sheet.
+    LaunchedEffect(shortcutAction) {
+        when (shortcutAction) {
+            "add_expense" -> openEntry(TransactionType.DEBIT)
+            "add_income" -> openEntry(TransactionType.CREDIT)
+        }
+        if (shortcutAction != null) onShortcutActionHandled()
     }
 
     BackHandler(enabled = tab != Tab.HOME) { onTabChange(Tab.HOME) }
