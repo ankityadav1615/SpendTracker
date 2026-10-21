@@ -237,6 +237,7 @@ private fun MainScreens(
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var periodPanel by rememberSaveable { mutableStateOf(PeriodPanel.NONE) }
     var budgetRequested by rememberSaveable { mutableStateOf(false) }
+    var savingsGoalRequested by rememberSaveable { mutableStateOf(false) }
     var categoryBudgetsOpen by rememberSaveable { mutableStateOf(false) }
     var categoryRulesOpen by rememberSaveable { mutableStateOf(false) }
     val categoryRules by viewModel.categoryRules.collectAsStateWithLifecycle()
@@ -318,6 +319,10 @@ private fun MainScreens(
                     onTabChange(Tab.ACTIVITY)
                 },
                 onDismissInsight = viewModel::dismissInsight,
+                onOpenSavingsGoal = {
+                    savingsGoalRequested = true
+                    onTabChange(Tab.SETTINGS)
+                },
             )
 
             Tab.ACTIVITY -> ActivityScreen(
@@ -378,11 +383,15 @@ private fun MainScreens(
                     if (enabled) onRequestNotificationPermission()
                     viewModel.setWeeklySummary(enabled)
                 },
+                onSetSavingsGoal = viewModel::setSavingsGoal,
+                onClearSavingsGoal = viewModel::clearSavingsGoal,
                 onOpenPrivacy = { onOpenDocument(AppDocument.PRIVACY) },
                 onOpenLicences = { onOpenDocument(AppDocument.LICENCES) },
                 onDeleteAll = viewModel::deleteAllData,
                 budgetRequested = budgetRequested,
                 onBudgetRequestHandled = { budgetRequested = false },
+                savingsGoalRequested = savingsGoalRequested,
+                onSavingsGoalRequestHandled = { savingsGoalRequested = false },
             )
         }
         // Lists scroll edge to edge; keep the status bar icons on a solid background.

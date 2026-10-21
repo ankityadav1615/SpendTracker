@@ -49,6 +49,7 @@ import com.spendtracker.model.Money
 import com.spendtracker.model.MoneyLeft
 import com.spendtracker.model.OverBudget
 import com.spendtracker.model.PeriodChoice
+import com.spendtracker.model.SavingsGoalStatus
 import com.spendtracker.model.UpcomingBill
 import com.spendtracker.ui.MoneyState
 import com.spendtracker.ui.theme.SpendTheme
@@ -69,6 +70,7 @@ fun HomeScreen(
     onSetBudget: () -> Unit,
     onOpenCategory: (Category) -> Unit,
     onDismissInsight: (String) -> Unit = {},
+    onOpenSavingsGoal: () -> Unit = {},
 ) {
     LazyColumn(
         contentPadding = screenPadding(contentPadding),
@@ -98,6 +100,9 @@ fun HomeScreen(
         }
         if (state.budgetStatuses.isNotEmpty()) {
             item { BudgetsCard(state.budgetStatuses, onOpenCategory) }
+        }
+        if (state.savingsGoal != null) {
+            item { SavingsGoalCard(state.savingsGoal, onClick = onOpenSavingsGoal) }
         }
         item { WhereItWentCard(state, onOpenCategory) }
         if (state.balances.isNotEmpty()) {
@@ -182,6 +187,42 @@ private fun BudgetsCard(statuses: List<BudgetStatus>, onOpenCategory: (Category)
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SavingsGoalCard(goal: SavingsGoalStatus, onClick: () -> Unit) {
+    SpendCard(
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 16.dp),
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(goal.name, style = MaterialTheme.typography.titleLarge)
+            Text(
+                "${goal.percent}%",
+                style = MaterialTheme.typography.titleLarge,
+                color = if (goal.reached) SpendTheme.colors.credit else MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        LinearProgressIndicator(
+            progress = { (goal.percent / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp)),
+            color = if (goal.reached) SpendTheme.colors.credit else MaterialTheme.colorScheme.primary,
+            trackColor = SpendTheme.colors.tint,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            if (goal.reached) {
+                "Goal reached! ${Money.format(goal.savedPaise)} saved"
+            } else {
+                "${Money.format(goal.savedPaise)} of ${Money.format(goal.targetPaise)} saved"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

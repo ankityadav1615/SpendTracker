@@ -35,6 +35,8 @@ import com.spendtracker.model.Report
 import com.spendtracker.model.ReportSide
 import com.spendtracker.model.Reports
 import com.spendtracker.model.ResolvedPeriod
+import com.spendtracker.model.SavingsGoalStatus
+import com.spendtracker.model.SavingsGoals
 import com.spendtracker.model.Summary
 import com.spendtracker.model.TransactionType
 import com.spendtracker.sms.SmsPermission
@@ -75,6 +77,8 @@ data class MoneyState(
     val recurringPayments: List<RecurringPayment>,
     /** Dismissible nudges built from budgets, recurring bills and category spikes. */
     val insights: List<Insight>,
+    /** The user's savings goal progress, or null when none is set. */
+    val savingsGoal: SavingsGoalStatus?,
 )
 
 /** A snackbar message, optionally with a button. */
@@ -209,6 +213,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         settingsStore.update { it.copy(weeklySummary = enabled) }
     }
 
+    /** Sets or edits the savings goal. Editing an existing goal keeps its original start date, so progress isn't lost. */
+    fun setSavingsGoal(name: String, targetPaise: Long, deadlineMillis: Long?) {
+        settingsStore.update {
+            it.copy(
+                savingsGoalName = name,
+                savingsGoalTargetPaise = targetPaise,
+                savingsGoalDeadlineMillis = deadlineMillis,
+                savingsGoalStartedAtMillis = it.savingsGoalStartedAtMillis ?: System.currentTimeMillis(),
+            )
+        }
+    }
+
+    fun clearSavingsGoal() {
+        settingsStore.update {
+            it.copy(
+                savingsGoalName = null,
+                savingsGoalTargetPaise = null,
+                savingsGoalDeadlineMillis = null,
+                savingsGoalStartedAtMillis = null,
+            )
+        }
+    }
+
     fun setCategoryBudget(category: Category, paise: Long?) {
         viewModelScope.launch { repository.setCategoryBudget(category, paise) }
     }
@@ -328,6 +355,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val budgetStatuses = Budgets.statuses(budgets, summary.byCategory)
         val recurring = Recurring.detect(all)
         val insights = Insights.build(reports[ReportSide.EXPENSES]?.lines.orEmpty(), budgetStatuses, recurring, time)
+        val goalName = prefs.savingsGoalName
+        val goalTarget = prefs.savingsGoalTargetPaise
+        val savingsGoal = if (goalName != null && goalTarget != null) {
+            SavingsGoals.status(goalName, goalTarget, prefs.savingsGoalDeadlineMillis, prefs.savingsGoalStartedAtMillis ?: time, all)
+        } else {
+            null
+        }
         return MoneyState(
             period = resolved,
             options = resolver.options(),
@@ -343,6 +377,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             budgetStatuses = budgetStatuses,
             recurringPayments = recurring,
             insights = insights,
+            savingsGoal = savingsGoal,
         )
     }
 }

@@ -23,6 +23,13 @@ data class AppSettings(
     val billReminders: Boolean = false,
     /** Notify once a week with a spend summary for the past 7 days. */
     val weeklySummary: Boolean = false,
+    /** What the user is saving towards, e.g. "New laptop". Null when no goal is set. */
+    val savingsGoalName: String? = null,
+    val savingsGoalTargetPaise: Long? = null,
+    /** Optional target date; null means no deadline. */
+    val savingsGoalDeadlineMillis: Long? = null,
+    /** When the goal was first set; progress only counts savings/investments from this point on. */
+    val savingsGoalStartedAtMillis: Long? = null,
 )
 
 /** User choices, kept in preferences so they are readable synchronously (e.g. by the SMS receiver). */
@@ -47,6 +54,10 @@ class SettingsStore(context: Context) {
             putBoolean(KEY_SMS_CONSENT, updated.smsConsent)
             putBoolean(KEY_BILL_REMINDERS, updated.billReminders)
             putBoolean(KEY_WEEKLY_SUMMARY, updated.weeklySummary)
+            if (updated.savingsGoalName == null) remove(KEY_GOAL_NAME) else putString(KEY_GOAL_NAME, updated.savingsGoalName)
+            if (updated.savingsGoalTargetPaise == null) remove(KEY_GOAL_TARGET) else putLong(KEY_GOAL_TARGET, updated.savingsGoalTargetPaise)
+            if (updated.savingsGoalDeadlineMillis == null) remove(KEY_GOAL_DEADLINE) else putLong(KEY_GOAL_DEADLINE, updated.savingsGoalDeadlineMillis)
+            if (updated.savingsGoalStartedAtMillis == null) remove(KEY_GOAL_STARTED) else putLong(KEY_GOAL_STARTED, updated.savingsGoalStartedAtMillis)
         }
         state.value = updated
     }
@@ -68,6 +79,10 @@ class SettingsStore(context: Context) {
         smsConsent = prefs.getBoolean(KEY_SMS_CONSENT, false),
         billReminders = prefs.getBoolean(KEY_BILL_REMINDERS, false),
         weeklySummary = prefs.getBoolean(KEY_WEEKLY_SUMMARY, false),
+        savingsGoalName = prefs.getString(KEY_GOAL_NAME, null),
+        savingsGoalTargetPaise = if (prefs.contains(KEY_GOAL_TARGET)) prefs.getLong(KEY_GOAL_TARGET, 0) else null,
+        savingsGoalDeadlineMillis = if (prefs.contains(KEY_GOAL_DEADLINE)) prefs.getLong(KEY_GOAL_DEADLINE, 0) else null,
+        savingsGoalStartedAtMillis = if (prefs.contains(KEY_GOAL_STARTED)) prefs.getLong(KEY_GOAL_STARTED, 0) else null,
     )
 
     private companion object {
@@ -79,5 +94,9 @@ class SettingsStore(context: Context) {
         const val KEY_SMS_CONSENT = "sms_consent"
         const val KEY_BILL_REMINDERS = "bill_reminders"
         const val KEY_WEEKLY_SUMMARY = "weekly_summary"
+        const val KEY_GOAL_NAME = "savings_goal_name"
+        const val KEY_GOAL_TARGET = "savings_goal_target_paise"
+        const val KEY_GOAL_DEADLINE = "savings_goal_deadline_millis"
+        const val KEY_GOAL_STARTED = "savings_goal_started_at_millis"
     }
 }
