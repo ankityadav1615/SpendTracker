@@ -122,6 +122,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

@@ -12,9 +12,12 @@ import com.spendtracker.notifications.BillReminderWorker
 import com.spendtracker.notifications.NotificationChannels
 import com.spendtracker.notifications.WeeklySummaryWorker
 import com.spendtracker.sms.SmsInboxImporter
+import com.spendtracker.widget.SpendWidget
+import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 class SpendTrackerApplication : Application() {
@@ -31,6 +34,14 @@ class SpendTrackerApplication : Application() {
         super.onCreate()
         NotificationChannels.ensureCreated(this)
         scheduleNotificationWork()
+        refreshWidgetOnDataChanges()
+    }
+
+    /** Keeps the home-screen widget in step with new SMS imports, edits and deletions while the app is alive. */
+    private fun refreshWidgetOnDataChanges() {
+        scope.launch {
+            repository.transactions.collect { SpendWidget.updateAll(this@SpendTrackerApplication) }
+        }
     }
 
     /**
