@@ -16,3 +16,6 @@
 *.jks
 keystore.properties
 /.impeccable/
+
+# Play demo video (upload it to YouTube; don't commit it)
+/store/demo/

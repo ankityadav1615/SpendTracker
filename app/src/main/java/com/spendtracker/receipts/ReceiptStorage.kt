@@ -30,6 +30,11 @@ object ReceiptStorage {
         return file to uri
     }
 
+    /** Deletes every stored receipt photo, for when the user deletes all their data. */
+    fun deleteAll(context: Context) {
+        File(context.filesDir, "receipts").deleteRecursively()
+    }
+
     /** Downscales a just-captured photo in place. Call after [newCaptureTarget]'s file has been written. */
     fun finishCapture(file: File) {
         downscale(file)
