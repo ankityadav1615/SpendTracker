@@ -1,19 +1,30 @@
 package com.spendtracker.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendtracker.SpendTrackerApplication
 import com.spendtracker.data.AppSettings
 import com.spendtracker.data.Transaction
+import com.spendtracker.export.CsvReport
+import com.spendtracker.export.ExportFormat
+import com.spendtracker.export.PdfReport
+import com.spendtracker.export.ReportDocument
 import com.spendtracker.model.AccountBalance
+import com.spendtracker.model.CashLedger
 import com.spendtracker.model.Category
+import com.spendtracker.model.Comparison
 import com.spendtracker.model.IncomeType
+import com.spendtracker.model.ManualEntry
 import com.spendtracker.model.MoneyLeft
 import com.spendtracker.model.PeriodChoice
 import com.spendtracker.model.PeriodMode
 import com.spendtracker.model.PeriodOption
 import com.spendtracker.model.PeriodResolver
+import com.spendtracker.model.Report
+import com.spendtracker.model.ReportSide
+import com.spendtracker.model.Reports
 import com.spendtracker.model.ResolvedPeriod
 import com.spendtracker.model.Summary
 import com.spendtracker.model.TransactionType
@@ -28,11 +39,12 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Everything Home and Activity show for the selected period. */
+/** Everything Home, Activity and Reports show for the selected period. */
 data class MoneyState(
     val period: ResolvedPeriod,
     val options: List<PeriodOption>,
@@ -43,7 +55,29 @@ data class MoneyState(
     val balances: List<AccountBalance>,
     val hasAnyTransactions: Boolean,
     val today: LocalDate,
+    /** Cash already counted through added cash spends, per withdrawal id (see [CashLedger]). */
+    val cashCovered: Map<Long, Long>,
+    /** The earlier period the Reports screen compares with, or null when there is none to compare. */
+    val comparison: Comparison?,
+    val reports: Map<ReportSide, Report>,
 )
+
+/** A snackbar message, optionally with a button. */
+data class UiMessage(val text: String, val action: Action? = null) {
+    sealed interface Action {
+        val label: String
+    }
+
+    /** Puts back a deleted entry. */
+    data class Undo(val transaction: Transaction) : Action {
+        override val label = "Undo"
+    }
+
+    /** Opens a saved report. */
+    data class Open(val uri: Uri, val mimeType: String) : Action {
+        override val label = "Open"
+    }
+}
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -74,8 +108,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _importing = MutableStateFlow(false)
     val importing: StateFlow<Boolean> = _importing.asStateFlow()
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private val _message = MutableStateFlow<UiMessage?>(null)
+    val message: StateFlow<UiMessage?> = _message.asStateFlow()
+
+    private val _exporting = MutableStateFlow(false)
+    val exporting: StateFlow<Boolean> = _exporting.asStateFlow()
+
+    fun say(text: String, action: UiMessage.Action? = null) {
+        _message.value = UiMessage(text, action)
+    }
 
     fun onResume() {
         now.value = System.currentTimeMillis()
@@ -94,14 +135,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val added = app.inboxImporter.import(fullRescan = userRequested)
                 if (userRequested || added > 0) {
-                    _message.value = when (added) {
-                        0 -> "No new transactions found"
-                        1 -> "Added 1 new transaction"
-                        else -> "Added $added new transactions"
-                    }
+                    say(
+                        when (added) {
+                            0 -> "No new transactions found"
+                            1 -> "Added 1 new transaction"
+                            else -> "Added $added new transactions"
+                        },
+                    )
                 }
             } catch (_: SecurityException) {
-                _message.value = "SMS access is needed to read bank messages"
+                say("SMS access is needed to read bank messages")
             } finally {
                 _importing.value = false
             }
@@ -142,7 +185,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Stops reading SMS. Android keeps the permission until the user turns it off in system settings. */
     fun stopSms() {
         settingsStore.update { it.copy(smsConsent = false) }
-        _message.value = "SpendTracker stopped reading SMS"
+        say("SpendTracker stopped reading SMS")
     }
 
     fun deleteAllData() {
@@ -159,17 +202,75 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun hide(transaction: Transaction) {
         viewModelScope.launch { repository.setIgnored(transaction, true) }
-        _message.value = "Hidden. It won't count anywhere."
+        say("Hidden. It won't count anywhere.")
+    }
+
+    /** Saves an entry from the add sheet, or the changes to [existing]. */
+    fun saveEntry(entry: ManualEntry, existing: Transaction?) {
+        viewModelScope.launch {
+            if (existing == null) repository.addManual(entry) else repository.updateManual(existing, entry)
+        }
+        val kind = if (entry.type == TransactionType.DEBIT) "Expense" else "Income"
+        say(if (existing == null) "$kind added" else "$kind updated")
+    }
+
+    fun deleteEntry(transaction: Transaction) {
+        viewModelScope.launch { repository.deleteManual(transaction) }
+        say("Deleted", UiMessage.Undo(transaction))
+    }
+
+    fun undo(action: UiMessage.Undo) {
+        viewModelScope.launch { repository.restore(action.transaction) }
+    }
+
+    /** Writes the report for [first]..[last] and [categories] (null for all) into the file the user picked. */
+    fun export(uri: Uri, format: ExportFormat, first: LocalDate, last: LocalDate, categories: Set<Category>?) {
+        if (_exporting.value) return
+        _exporting.value = true
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val all = allTransactions.value.orEmpty()
+                    val today = LocalDate.now()
+                    val document = ReportDocument.build(all, first, last, categories, CashLedger.covered(all), today)
+                    val stream = app.contentResolver.openOutputStream(uri, "wt") ?: error("No output stream")
+                    stream.use { out ->
+                        when (format) {
+                            ExportFormat.CSV -> out.write(CsvReport.write(document).toByteArray(Charsets.UTF_8))
+                            ExportFormat.PDF -> PdfReport.write(app, document, out)
+                        }
+                    }
+                }
+                say("Report saved", UiMessage.Open(uri, format.mimeType))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                say("Couldn't save the report. Try another folder.")
+            } finally {
+                _exporting.value = false
+            }
+        }
     }
 
     private fun buildState(all: List<Transaction>, prefs: AppSettings, picked: PeriodChoice?, time: Long): MoneyState {
+        val zone = ZoneId.systemDefault()
+        val today = Instant.ofEpochMilli(time).atZone(zone).toLocalDate()
         val salaryTimestamps = all.filter { it.type == TransactionType.CREDIT && it.category == Category.SALARY }
             .map { it.timestamp }
         val resolver = PeriodResolver(salaryTimestamps, all.minOfOrNull { it.timestamp }, time, prefs.monthStartDay)
         val resolved = resolver.resolve(picked ?: resolver.defaultChoice(prefs.periodMode))
         val inPeriod = all.filter { it.timestamp in resolved.period }
-        val summary = Summary.of(inPeriod)
+        val covered = CashLedger.covered(all)
+        val summary = Summary.of(inPeriod, covered)
         val budget = prefs.monthlyBudgetPaise.takeIf { resolved.budgetApplies }
+
+        val comparison = Reports.comparison(resolved, resolved.previous?.let(resolver::resolve), today, zone)
+        val previous = comparison?.let { c -> all.filter { it.timestamp in c.period } }?.takeIf { it.isNotEmpty() }
+        val first = resolved.firstDate
+            ?: inPeriod.minOfOrNull { it.timestamp }?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+            ?: resolved.lastDate
+        val reports = ReportSide.entries.associateWith { side ->
+            Reports.build(side, inPeriod, covered, first, resolved.lastDate, previous, zone)
+        }
         return MoneyState(
             period = resolved,
             options = resolver.options(),
@@ -178,7 +279,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             transactions = inPeriod,
             balances = Summary.latestBalances(all),
             hasAnyTransactions = all.isNotEmpty(),
-            today = Instant.ofEpochMilli(time).atZone(ZoneId.systemDefault()).toLocalDate(),
+            today = today,
+            cashCovered = covered,
+            comparison = comparison.takeIf { previous != null },
+            reports = reports,
         )
     }
 }

@@ -89,19 +89,26 @@ object Activity {
             transaction.category.label,
             transaction.bank,
             transaction.accountTail,
+            transaction.note,
         ).joinToString(" ").lowercase(Locale.ROOT)
         return words.all { it in haystack }
     }
 
-    /** Groups transactions (newest first) by day, keeping the order. */
-    fun byDay(transactions: List<Transaction>, zone: ZoneId = ZoneId.systemDefault()): List<DayGroup> =
+    /** Groups transactions (newest first) by day, keeping the order. [cashCovered] is from [CashLedger.covered]. */
+    fun byDay(
+        transactions: List<Transaction>,
+        zone: ZoneId = ZoneId.systemDefault(),
+        cashCovered: Map<Long, Long> = emptyMap(),
+    ): List<DayGroup> =
         transactions
             .groupBy { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }
             .map { (date, list) ->
                 val counted = list.filter { it.category.kind != CategoryKind.EXCLUDED }
                 DayGroup(
                     date = date,
-                    netPaise = counted.sumOf { if (it.type == TransactionType.CREDIT) it.amountPaise else -it.amountPaise },
+                    netPaise = counted.sumOf {
+                        if (it.type == TransactionType.CREDIT) it.amountPaise else -CashLedger.countedPaise(it, cashCovered)
+                    },
                     hasCounted = counted.isNotEmpty(),
                     transactions = list,
                 )

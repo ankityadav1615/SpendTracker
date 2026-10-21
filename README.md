@@ -1,6 +1,6 @@
 # SpendTracker
 
-An Android app that tracks your money automatically. It reads the transaction SMS your bank sends for every UPI, card, NEFT/IMPS, NACH/EMI and ATM transaction, works out where the money went, and shows how much is left. There is no manual entry.
+An Android app that tracks your money automatically. It reads the transaction SMS your bank sends for every UPI, card, NEFT/IMPS, NACH/EMI and ATM transaction, works out where the money went, and shows how much is left. Cash spends, and anything your bank doesn't text you about, can be added by hand with the **+** button.
 
 It works for everyone, not only salaried people: business owners, freelancers, students living on an allowance, and anyone with mixed income.
 
@@ -15,11 +15,14 @@ UPI apps and NPCI don't offer a personal transaction API, so bank SMS is the mos
   - **Calendar month:** for everyone else. Months can also start on another day, such as the 5th.
 - **Any date range.** Tap the date at the top of Home or Activity to pick this or last pay cycle, this or last month, the last 3 months, or **any range on a calendar**. The arrows step back and forward by the same length.
 - **Shows what's left.** Home shows how much is left of a **monthly budget** if you set one, otherwise of the money that came in during the period. Below that it shows where the money went, by category: EMI & Loans, Rent, Groceries, Fuel, Food & Dining, Bills & Recharges, Shopping, Travel, Health, Entertainment, Savings & Investments, Cash, Sent to people, Daily & Misc. It also shows the latest balance of each bank account.
-- **Activity with search and filters.** Every transaction, grouped by day, with chips for money out, money in or a single category, and a search across payee, UPI ID, category, bank and account number.
+- **Activity with search and filters.** Every transaction, grouped by day, with chips for money out, money in or a single category, and a search across payee, UPI ID, category, bank, account number and notes.
+- **Add expenses and income by hand.** Tap the orange **+** in the middle of the bottom bar. Enter the amount, who you paid (optional), a category, how you paid (cash, UPI, card or other), the date and a note. Tap an added entry to change or delete it; *Undo* brings a deleted one back. Added entries are marked "Added by you" and are never changed by SMS reading. People who don't turn SMS reading on can track everything this way.
+- **Reports with charts.** The **Reports** tab shows the period as a ring chart (tap a slice to see its share) or as bars over time (a bar per day, week or month, depending on the range). Switch between **Expenses** and **Income**. Each category card shows its share of the total, the number of payments, and how much it went up or down compared with the same days of the previous period. Tap a card to see its transactions.
+- **Download a report as PDF or CSV.** Tap the download button on Reports, keep the dates or change them, choose all categories or just some, and pick a file type. Android then asks where to save it (Downloads, Google Drive, …). The PDF has a summary, a category table and every transaction grouped by category; the CSV opens in Excel or Google Sheets with one row per transaction.
 - **Learns from your corrections.** Tap any transaction to change its category. Leave *Remember for every payment to …* on, and every past and future payment to that payee is filed the same way (for example, UPI transfers to your landlord → Rent).
-- **Avoids double counting.** Credit card bill payments and transfers between your own accounts are shown but not counted as spending. Card spends are already counted when you swipe.
+- **Avoids double counting.** Credit card bill payments and transfers between your own accounts are shown but not counted as spending. Card spends are already counted when you swipe. Cash you add by hand is taken from your most recent ATM withdrawal (within 60 days), so withdrawn cash is counted once: under the categories you spent it on, with only the unaccounted rest left under *Cash withdrawal*.
 - **Ignores noise:** OTPs, payment requests, "will be debited" reminders, bill-due alerts, failed transactions, offers, and SMS from personal numbers. If something slips through, open it and tap *Hide this transaction*.
-- **Private by design.** All data stays in a local database on the phone. The app has no internet permission, no account, no ads and no analytics, and backups are disabled. You can stop SMS reading and delete all data from Settings. See the [privacy policy](PRIVACY.md).
+- **Private by design.** All data stays in a local database on the phone. The app has no internet permission, no account, no ads and no analytics, and backups are disabled. Reports you download are saved only where you choose. You can stop SMS reading and delete all data from Settings. See the [privacy policy](PRIVACY.md).
 
 ## Install the APK
 
@@ -153,10 +156,13 @@ People can install `SpendTracker-<tag>.apk` from the release page. Because the A
 | Live SMS capture and inbox import | `sms/SmsReceiver.kt`, `sms/SmsInboxImporter.kt` |
 | Pay cycles, months, calendar ranges and their labels | `model/Periods.kt`, `model/PeriodChoice.kt`, `model/DateRanges.kt` |
 | Per-category totals, money left (budget or income), bank balances merged per account | `model/Summary.kt`, `model/MoneyLeft.kt`, `model/Accounts.kt` |
+| Entries added by hand, and matching cash spends to ATM withdrawals | `model/ManualEntry.kt` |
+| Report totals, change vs the previous period, chart bars | `model/Report.kt` |
+| PDF and CSV downloads | `export/ReportDocument.kt`, `export/PdfReport.kt`, `export/CsvReport.kt` |
 | Activity filters, search and day groups | `model/Activity.kt` |
 | Settings and SMS consent | `data/SettingsStore.kt` |
 | UI (Jetpack Compose + Material 3); design notes in [DESIGN.md](DESIGN.md) | `ui/` |
 
-Tech stack: Kotlin, Jetpack Compose, Room, and coroutines/Flow. Parser, categorizer, period, summary and activity logic are covered by JVM unit tests in `app/src/test`. The tests use real-world SMS formats from HDFC, ICICI, SBI, Axis, Kotak, IDFC FIRST and others.
+Tech stack: Kotlin, Jetpack Compose, Room, and coroutines/Flow. Parser, categorizer, period, summary, activity, manual entry, report and export logic are covered by JVM unit tests in `app/src/test`. The tests use real-world SMS formats from HDFC, ICICI, SBI, Axis, Kotak, IDFC FIRST and others.
 
 If a bank SMS from your bank isn't recognised, add it as a test case in `SmsParserTest.kt` and adjust the patterns in `SmsParser.kt`.

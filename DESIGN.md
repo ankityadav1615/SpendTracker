@@ -110,6 +110,11 @@ The Home headline amount is a one-off: Baloo 700 at about 56sp, with "left" or "
 | `DatePill` + `RoundIconButton`s | Home, Activity | The calendar icon, the period name and dates, and a chevron. Prev/next buttons step through periods. |
 | `PrimaryButton` / `OutlineButton` | Onboarding, empty states, period sheet | Full width, 56dp tall, pill-shaped. |
 | Filter chips | Activity | A horizontal row. The selected chip is ink (`secondaryContainer`) with a check icon. |
+| `ChoiceChip` | Add sheet, transaction sheet, download sheet | The same ink-when-selected chip, used for single or multi choice. |
+| `SegmentedToggle` / `IconToggle` | Reports, add sheet | A sunken track (`#F3E6D6`) with the selected segment raised as a card. Text segments are 48dp tall; icon segments 44×36dp. |
+| `OptionCard` | Download sheet | A selectable card with a tinted tile, title and subtitle; selected adds a 2dp primary border and a check. |
+| `ChangeBadge` | Reports | A small pill with ↑/↓ and a percentage. For expenses, up is red and down is green; for income it is reversed. |
+| Add button | Bottom bar | A 56dp primary circle with a plus, centred between Activity and Reports. |
 | Spend strip | Home | One bar split by category colour; the unspent remainder is hatched with `stripLeftA/B`. |
 | `EmptyNote` | Lists | A title plus one sentence that says what to do next. |
 
@@ -140,6 +145,26 @@ The Home headline amount is a one-off: Baloo 700 at about 56sp, with "left" or "
   3. Category chips, and a "Remember for every payment to …" checkbox.
   4. The original SMS in a bubble.
   5. "Hide this transaction".
+
+  For an entry added by hand, the detail card shows how it was paid, "Added: By you" and the note; there is no
+  remember checkbox or SMS bubble, and the sheet ends with "Edit" and a red "Delete" (with Undo in a snackbar).
+- **Reports.** From top to bottom:
+  1. The title with a download button.
+  2. The period bar, then an Expenses / Income toggle.
+  3. The chart card with a ring / bars toggle. The ring has a slice per category with small gaps; tapping a slice
+     raises it, dims the rest and shows its amount and share in the centre. The bars show a day, week or month per
+     bar depending on the range length; tapping one shows a tooltip.
+  4. A card per category: tile, name, "42% of total · N payments", amount, the change badge against the same days
+     of the previous period, and a thin share bar in the category colour. Tapping a card opens Activity filtered to it.
+- **Add sheet.** An Expense / Income toggle, a large centred amount, then "Paid to", category chips (8 plus
+  "More…"), "Paid with" chips for expenses with a one-line hint under Cash (taken out of ATM withdrawals) and UPI or
+  Card (these usually arrive by SMS), a date and note row, and "Save expense". Errors appear only after the
+  first save attempt. In lists, entries added by hand show how they were paid ("Groceries · Cash").
+- **Download sheet.** The period pill, an "All" chip plus a chip per category in the period, PDF and CSV option
+  cards, and "Download PDF/CSV", which opens Android's save screen. When saved, a snackbar offers "Open".
+- **PDF report.** A4 pages: a header with the dates, the totals (in, out, and left or "over by"), a ring chart
+  beside a category table for expenses and for income, then every transaction grouped by category, with
+  "Page X of Y" in the footer.
 - **Period sheet and calendar.**
   - The bottom sheet lists the period options as radio rows, plus "Pick dates on a calendar".
   - The calendar is a full-screen, edge-to-edge Material `DateRangePicker` limited to today and earlier.

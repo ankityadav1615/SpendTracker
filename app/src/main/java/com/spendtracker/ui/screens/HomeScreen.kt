@@ -343,6 +343,12 @@ private fun SetUpSmsCard(onSetUpSms: () -> Unit) {
         )
         Spacer(Modifier.height(16.dp))
         PrimaryButton("Set up SMS reading", onClick = onSetUpSms)
+        Text(
+            "Rather not? Tap + below to add what you spend yourself.",
+            style = MaterialTheme.typography.bodySmall,
+            color = SpendTheme.colors.muted,
+            modifier = Modifier.padding(top = 12.dp),
+        )
     }
 }
 
@@ -377,7 +383,7 @@ private fun NothingYetCard(importing: Boolean) {
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            "Bank and UPI alerts from the last 6 months appear here, and new ones as they arrive.",
+            "Bank and UPI alerts from the last 6 months appear here, and new ones as they arrive. Tap + to add cash spends.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),

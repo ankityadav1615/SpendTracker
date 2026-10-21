@@ -53,8 +53,9 @@ fun ActivityScreen(
     val filters = remember(transactions, filter) {
         Activity.filtersFor(transactions).let { if (filter in it) it else it + filter }
     }
-    val groups = remember(transactions, filter, query) {
-        Activity.byDay(transactions.filter { filter.matches(it) && Activity.matchesQuery(it, query) })
+    val covered = state?.cashCovered.orEmpty()
+    val groups = remember(transactions, filter, query, covered) {
+        Activity.byDay(transactions.filter { filter.matches(it) && Activity.matchesQuery(it, query) }, cashCovered = covered)
     }
 
     LazyColumn(contentPadding = screenPadding(contentPadding)) {
@@ -89,7 +90,7 @@ fun ActivityScreen(
                     body = when {
                         query.isNotBlank() -> "No transactions in this period match \"${query.trim()}\"."
                         filter != ActivityFilter.All -> "No transactions of this kind in this period."
-                        else -> "No transactions in this period."
+                        else -> "No transactions in this period. Tap + to add one by hand."
                     },
                 )
             }

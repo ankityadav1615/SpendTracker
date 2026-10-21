@@ -239,6 +239,7 @@ fun TransactionRow(transaction: Transaction, onClick: () -> Unit) {
     val meta = listOfNotNull(
         transaction.category.label,
         "UPI".takeIf { transaction.vpa != null },
+        transaction.method?.label?.takeIf { transaction.vpa == null },
         accountLabel(transaction.bank, transaction.accountTail),
     ).joinToString(" · ")
     ListRow(

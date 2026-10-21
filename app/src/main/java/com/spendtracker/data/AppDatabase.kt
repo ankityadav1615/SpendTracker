@@ -1,6 +1,7 @@
 package com.spendtracker.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Insert
@@ -10,8 +11,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.Update
 import androidx.room.Upsert
 import com.spendtracker.model.Category
+import com.spendtracker.model.EntrySource
+import com.spendtracker.model.PaymentMethod
 import com.spendtracker.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 
@@ -27,6 +31,19 @@ class Converters {
 
     @TypeConverter
     fun stringToType(value: String): TransactionType = TransactionType.valueOf(value)
+
+    @TypeConverter
+    fun sourceToString(value: EntrySource): String = value.name
+
+    @TypeConverter
+    fun stringToSource(value: String): EntrySource =
+        EntrySource.entries.firstOrNull { it.name == value } ?: EntrySource.SMS
+
+    @TypeConverter
+    fun methodToString(value: PaymentMethod?): String? = value?.name
+
+    @TypeConverter
+    fun stringToMethod(value: String?): PaymentMethod? = PaymentMethod.entries.firstOrNull { it.name == value }
 }
 
 @Dao
@@ -37,6 +54,15 @@ interface TransactionDao {
     /** Returns the new row ids, -1 for rows skipped as duplicates. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(items: List<Transaction>): List<Long>
+
+    @Insert
+    suspend fun insert(item: Transaction): Long
+
+    @Update
+    suspend fun update(item: Transaction)
+
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("UPDATE transactions SET category = :category WHERE id = :id")
     suspend fun updateCategory(id: Long, category: Category)
@@ -63,7 +89,12 @@ interface CategoryRuleDao {
     suspend fun deleteAll()
 }
 
-@Database(entities = [Transaction::class, CategoryRule::class], version = 1, exportSchema = true)
+@Database(
+    entities = [Transaction::class, CategoryRule::class],
+    version = 2,
+    exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
