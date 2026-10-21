@@ -1,6 +1,6 @@
 # SpendTracker privacy policy
 
-**Effective date:** 20 October 2026
+**Effective date:** 21 October 2026
 
 SpendTracker is an expense tracker for Android. It works out your spending from the SMS alerts your bank sends. This policy explains what the app reads, what it keeps, and where that data goes. In short: everything stays on your phone.
 
@@ -18,9 +18,18 @@ For each SMS recognised as a transaction, the app saves in a local database on y
 - The category, including any category you choose yourself. If you ask it to, the app also remembers your choice for that payee.
 - The sender ID and the full text of that SMS. The app uses these to show the transaction details and to avoid saving the same transaction twice.
 
-If you hide a transaction, it is kept but marked as hidden, so it does not come back on the next scan. The app also keeps your settings, such as how your spending periods are shown and any budget you set, and notes when it last scanned your inbox.
+If you hide a transaction, it is kept but marked as hidden, so it does not come back on the next scan. The app also keeps your settings, such as how your spending periods are shown, any overall or per-category budgets and savings goal you set, which tips you dismissed, and when it last scanned your inbox. Recurring payments, budget progress and spending tips are worked out on your phone from the transactions already saved.
 
 If you add an expense or income yourself, the app saves what you enter: the amount, the date, the category, and the name, payment method and note if you fill them in. These entries are stored in the same local database and are deleted the same way.
+
+## Receipt photos
+
+You can attach a photo of a receipt to an entry you added yourself. You either take the photo with your camera app or choose one with Android's photo picker, which gives SpendTracker only the photo you pick. The app has no camera or photo-library permission. It saves a smaller copy of the photo in its own private storage on your phone, where other apps can't see it, and doesn't change the original in your gallery.
+
+## Notifications and home-screen widget
+
+- **Notifications.** If you allow notifications, the app can remind you the day before a recurring bill or EMI is expected and send a weekly summary of your spending. They are created on your phone and show payee names and amounts, so depending on your Android settings they may be visible on your lock screen. Turn them off in the app's Settings or in Android settings.
+- **Widget.** If you add the SpendTracker widget to your home screen, it shows this month's spending, top category and income to anyone who can see your home screen. Remove the widget to hide it.
 
 ## Downloaded reports
 
@@ -35,7 +44,7 @@ When you download a report, the app creates a PDF or CSV file with the transacti
 
 ## Your choices
 
-- **Delete your data:** use the option to delete all data in the app's Settings, or uninstall the app. You can also clear it in Android **Settings → Apps → SpendTracker → Storage → Clear storage**. The SMS in your inbox and any reports you downloaded are not changed.
+- **Delete your data:** use the option to delete all data in the app's Settings, which removes every transaction, receipt photo, budget, goal and setting, or uninstall the app. You can also clear it in Android **Settings → Apps → SpendTracker → Storage → Clear storage**. The SMS in your inbox and any reports you downloaded are not changed.
 - **Stop SMS reading:** in the app, open **Settings → SMS access** and choose to stop reading SMS. To also take away the permission itself, go to Android **Settings → Apps → SpendTracker → Permissions → SMS**. The app then stops reading messages.
 
 ## Children
@@ -48,4 +57,4 @@ If this policy changes, the new version will be published here with a new effect
 
 ## Contact
 
-Questions or concerns: open an issue at <https://github.com/ankityadav1615/SpendTracker/issues>.
+Questions or concerns: email <ankityadav66666@gmail.com>.

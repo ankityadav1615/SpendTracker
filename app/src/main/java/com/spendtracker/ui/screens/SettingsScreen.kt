@@ -202,7 +202,7 @@ fun SettingsScreen(
                 RowDivider()
                 SettingsRow(
                     title = "Delete all data",
-                    value = "Removes every transaction and setting from this phone",
+                    value = "Removes every transaction, photo and setting from this phone",
                     trailing = R.drawable.ic_trash,
                     trailingTint = MaterialTheme.colorScheme.error,
                     titleColor = MaterialTheme.colorScheme.error,
@@ -275,7 +275,7 @@ fun SettingsScreen(
             title = { Text("Delete all data?") },
             text = {
                 Text(
-                    "This removes every transaction, category choice and setting from this phone, and can't be undone. " +
+                    "This removes every transaction, receipt photo, category choice and setting from this phone, and can't be undone. " +
                         "Your SMS inbox isn't touched. SMS access stays on in Android settings until you turn it off there.",
                 )
             },

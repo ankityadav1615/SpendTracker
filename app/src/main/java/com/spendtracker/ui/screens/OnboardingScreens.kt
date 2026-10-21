@@ -203,14 +203,14 @@ fun DisclosureScreen(showProgress: Boolean, onAllow: () -> Unit, onNotNow: () ->
             )
             Text(
                 buildAnnotatedString {
-                    append("ICICI Bank Acct ")
+                    append("Bank A/c ")
                     withStyle(mark) { append("XX3485") }
                     append(" debited for Rs ")
                     withStyle(mark) { append("450.00") }
                     append(" on ")
                     withStyle(mark) { append("20-Oct-26") }
                     append("; ")
-                    withStyle(mark) { append("SWIGGY") }
+                    withStyle(mark) { append("GREEN BASKET") }
                     append(" credited. UPI:629318840412.")
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp, lineHeight = 21.sp),
@@ -231,7 +231,7 @@ fun DisclosureScreen(showProgress: Boolean, onAllow: () -> Unit, onNotNow: () ->
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(top = 8.dp),
             ) {
-                listOf("−₹450", "Swiggy", "ICICI ••3485", "20 Oct", "Food & dining").forEach { part ->
+                listOf("−₹450", "Green Basket", "A/c ••3485", "20 Oct", "Groceries").forEach { part ->
                     Text(
                         part,
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),

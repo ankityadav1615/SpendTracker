@@ -39,6 +39,7 @@ import com.spendtracker.model.SavingsGoalStatus
 import com.spendtracker.model.SavingsGoals
 import com.spendtracker.model.Summary
 import com.spendtracker.model.TransactionType
+import com.spendtracker.receipts.ReceiptStorage
 import com.spendtracker.sms.SmsPermission
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -263,6 +264,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteAllData() {
         viewModelScope.launch {
             repository.deleteAllData()
+            withContext(Dispatchers.IO) { ReceiptStorage.deleteAll(app) }
             settingsStore.clear()
             choice.value = null
         }
