@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exposes the app-private receipts folder to the camera app for capture writes only. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="receipts" path="receipts/" />
+</paths>

@@ -42,6 +42,8 @@ data class Transaction(
     /** How an added entry was paid; null for SMS transactions. */
     val method: PaymentMethod? = null,
     val note: String? = null,
+    /** Absolute path to a receipt photo the user attached; null when there is none. */
+    @ColumnInfo(defaultValue = "NULL") val receiptPath: String? = null,
 )
 
 val Transaction.isManual: Boolean get() = source == EntrySource.MANUAL
