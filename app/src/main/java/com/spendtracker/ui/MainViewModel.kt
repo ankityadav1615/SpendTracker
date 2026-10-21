@@ -6,22 +6,31 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendtracker.SpendTrackerApplication
 import com.spendtracker.data.AppSettings
+import com.spendtracker.data.CategoryBudget
 import com.spendtracker.data.Transaction
 import com.spendtracker.export.CsvReport
 import com.spendtracker.export.ExportFormat
 import com.spendtracker.export.PdfReport
 import com.spendtracker.export.ReportDocument
 import com.spendtracker.model.AccountBalance
+import com.spendtracker.model.Budgets
+import com.spendtracker.model.BudgetStatus
 import com.spendtracker.model.CashLedger
 import com.spendtracker.model.Category
+import com.spendtracker.model.CategoryRuleInfo
+import com.spendtracker.model.CategoryRules
 import com.spendtracker.model.Comparison
 import com.spendtracker.model.IncomeType
+import com.spendtracker.model.Insight
+import com.spendtracker.model.Insights
 import com.spendtracker.model.ManualEntry
 import com.spendtracker.model.MoneyLeft
 import com.spendtracker.model.PeriodChoice
 import com.spendtracker.model.PeriodMode
 import com.spendtracker.model.PeriodOption
 import com.spendtracker.model.PeriodResolver
+import com.spendtracker.model.Recurring
+import com.spendtracker.model.RecurringPayment
 import com.spendtracker.model.Report
 import com.spendtracker.model.ReportSide
 import com.spendtracker.model.Reports
@@ -60,6 +69,12 @@ data class MoneyState(
     /** The earlier period the Reports screen compares with, or null when there is none to compare. */
     val comparison: Comparison?,
     val reports: Map<ReportSide, Report>,
+    /** Per-category budgets matched against this period's spending, worst overspend first. */
+    val budgetStatuses: List<BudgetStatus>,
+    /** Payees whose transactions repeat on a steady cadence, soonest due first. */
+    val recurringPayments: List<RecurringPayment>,
+    /** Dismissible nudges built from budgets, recurring bills and category spikes. */
+    val insights: List<Insight>,
 )
 
 /** A snackbar message, optionally with a button. */
@@ -90,14 +105,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val allTransactions: StateFlow<List<Transaction>?> = repository.transactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private val categoryBudgets: StateFlow<List<CategoryBudget>> = repository.categoryBudgets
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Remembered payee -> category corrections, with a human-readable payee name, for the rules screen. */
+    val categoryRules: StateFlow<List<CategoryRuleInfo>> = combine(repository.categoryRules, allTransactions) { rules, txns ->
+        CategoryRules.infos(rules, txns.orEmpty())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** What the user picked; null follows the default for their settings. */
     private val choice = MutableStateFlow<PeriodChoice?>(null)
 
     /** Refreshed when the app comes back, so "today" moves on with the date. */
     private val now = MutableStateFlow(System.currentTimeMillis())
 
-    val money: StateFlow<MoneyState?> = combine(allTransactions, settings, choice, now) { txns, prefs, picked, time ->
-        txns?.let { buildState(it, prefs, picked, time) }
+    /** Insight ids the user dismissed this session; a nudge comes back once its underlying cause changes. */
+    private val dismissedInsightIds = MutableStateFlow<Set<String>>(emptySet())
+
+    val money: StateFlow<MoneyState?> = combine(allTransactions, settings, choice, now, categoryBudgets) { txns, prefs, picked, time, budgets ->
+        txns?.let { buildState(it, prefs, picked, time, budgets) }
+    }.combine(dismissedInsightIds) { state, dismissed ->
+        state?.copy(insights = state.insights.filterNot { it.id in dismissed })
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val transactionsById: StateFlow<Map<Long, Transaction>> = allTransactions
@@ -171,6 +199,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setBudget(paise: Long?) {
         settingsStore.update { it.copy(monthlyBudgetPaise = paise?.takeIf { p -> p > 0 }) }
+    }
+
+    fun setBillReminders(enabled: Boolean) {
+        settingsStore.update { it.copy(billReminders = enabled) }
+    }
+
+    fun setWeeklySummary(enabled: Boolean) {
+        settingsStore.update { it.copy(weeklySummary = enabled) }
+    }
+
+    fun setCategoryBudget(category: Category, paise: Long?) {
+        viewModelScope.launch { repository.setCategoryBudget(category, paise) }
+    }
+
+    fun deleteCategoryRule(key: String) {
+        viewModelScope.launch { repository.deleteCategoryRule(key) }
+    }
+
+    fun dismissInsight(id: String) {
+        dismissedInsightIds.value = dismissedInsightIds.value + id
     }
 
     /** "Allow SMS access" on the explanation screen; Android's own prompt follows. */
@@ -251,7 +299,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun buildState(all: List<Transaction>, prefs: AppSettings, picked: PeriodChoice?, time: Long): MoneyState {
+    private fun buildState(
+        all: List<Transaction>,
+        prefs: AppSettings,
+        picked: PeriodChoice?,
+        time: Long,
+        budgets: List<CategoryBudget>,
+    ): MoneyState {
         val zone = ZoneId.systemDefault()
         val today = Instant.ofEpochMilli(time).atZone(zone).toLocalDate()
         val salaryTimestamps = all.filter { it.type == TransactionType.CREDIT && it.category == Category.SALARY }
@@ -271,6 +325,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val reports = ReportSide.entries.associateWith { side ->
             Reports.build(side, inPeriod, covered, first, resolved.lastDate, previous, zone)
         }
+        val budgetStatuses = Budgets.statuses(budgets, summary.byCategory)
+        val recurring = Recurring.detect(all)
+        val insights = Insights.build(reports[ReportSide.EXPENSES]?.lines.orEmpty(), budgetStatuses, recurring, time)
         return MoneyState(
             period = resolved,
             options = resolver.options(),
@@ -283,6 +340,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             cashCovered = covered,
             comparison = comparison.takeIf { previous != null },
             reports = reports,
+            budgetStatuses = budgetStatuses,
+            recurringPayments = recurring,
+            insights = insights,
         )
     }
 }

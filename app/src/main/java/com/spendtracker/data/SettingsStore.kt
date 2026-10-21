@@ -19,6 +19,10 @@ data class AppSettings(
     val introDone: Boolean = false,
     /** The user agreed to SMS reading on the in-app explanation, before Android's permission prompt. */
     val smsConsent: Boolean = false,
+    /** Notify the day before a detected recurring bill/EMI is expected to repeat. */
+    val billReminders: Boolean = false,
+    /** Notify once a week with a spend summary for the past 7 days. */
+    val weeklySummary: Boolean = false,
 )
 
 /** User choices, kept in preferences so they are readable synchronously (e.g. by the SMS receiver). */
@@ -41,6 +45,8 @@ class SettingsStore(context: Context) {
             if (updated.monthlyBudgetPaise == null) remove(KEY_BUDGET) else putLong(KEY_BUDGET, updated.monthlyBudgetPaise)
             putBoolean(KEY_INTRO_DONE, updated.introDone)
             putBoolean(KEY_SMS_CONSENT, updated.smsConsent)
+            putBoolean(KEY_BILL_REMINDERS, updated.billReminders)
+            putBoolean(KEY_WEEKLY_SUMMARY, updated.weeklySummary)
         }
         state.value = updated
     }
@@ -60,6 +66,8 @@ class SettingsStore(context: Context) {
         monthlyBudgetPaise = if (prefs.contains(KEY_BUDGET)) prefs.getLong(KEY_BUDGET, 0) else null,
         introDone = prefs.getBoolean(KEY_INTRO_DONE, false),
         smsConsent = prefs.getBoolean(KEY_SMS_CONSENT, false),
+        billReminders = prefs.getBoolean(KEY_BILL_REMINDERS, false),
+        weeklySummary = prefs.getBoolean(KEY_WEEKLY_SUMMARY, false),
     )
 
     private companion object {
@@ -69,5 +77,7 @@ class SettingsStore(context: Context) {
         const val KEY_BUDGET = "monthly_budget_paise"
         const val KEY_INTRO_DONE = "intro_done"
         const val KEY_SMS_CONSENT = "sms_consent"
+        const val KEY_BILL_REMINDERS = "bill_reminders"
+        const val KEY_WEEKLY_SUMMARY = "weekly_summary"
     }
 }

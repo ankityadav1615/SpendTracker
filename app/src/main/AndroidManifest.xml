@@ -8,6 +8,8 @@
     <!-- Bank and UPI transaction alerts are read from SMS; nothing is sent anywhere (no INTERNET permission). -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Needed on Android 13+ for bill/EMI reminder and weekly summary notifications. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".SpendTrackerApplication"

@@ -25,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,14 +60,20 @@ fun SettingsScreen(
     hasPermission: Boolean,
     importing: Boolean,
     contentPadding: PaddingValues,
+    categoryBudgetCount: Int,
+    categoryRuleCount: Int,
     onChooseIncomeType: (IncomeType) -> Unit,
     onSetPeriodMode: (PeriodMode, Int) -> Unit,
     onSetBudget: (Long?) -> Unit,
+    onOpenCategoryBudgets: () -> Unit,
+    onOpenCategoryRules: () -> Unit,
     onSetUpSms: () -> Unit,
     onRequestPermission: () -> Unit,
     onStopSms: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onRescan: () -> Unit,
+    onSetBillReminders: (Boolean) -> Unit,
+    onSetWeeklySummary: (Boolean) -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenLicences: () -> Unit,
     onDeleteAll: () -> Unit,
@@ -98,6 +106,18 @@ fun SettingsScreen(
                     "Monthly budget",
                     settings.monthlyBudgetPaise?.let { Money.format(it) } ?: "Not set",
                 ) { dialog = SettingsDialog.BUDGET }
+                RowDivider()
+                SettingsRow(
+                    "Category budgets",
+                    if (categoryBudgetCount == 0) "Not set" else "$categoryBudgetCount " + if (categoryBudgetCount == 1) "category" else "categories",
+                    onClick = onOpenCategoryBudgets,
+                )
+                RowDivider()
+                SettingsRow(
+                    "Category rules",
+                    if (categoryRuleCount == 0) "None remembered yet" else "$categoryRuleCount remembered",
+                    onClick = onOpenCategoryRules,
+                )
             }
         }
         item { GroupLabel("Bank messages") }
@@ -130,6 +150,24 @@ fun SettingsScreen(
                     trailingTint = if (smsOn) MaterialTheme.colorScheme.primary else SpendTheme.colors.muted,
                     enabled = smsOn && !importing,
                     onClick = onRescan,
+                )
+            }
+        }
+        item { GroupLabel("Reminders") }
+        item {
+            SettingsGroup {
+                SwitchRow(
+                    title = "Bill & EMI reminders",
+                    value = "Nudge the day before a recurring payment is due",
+                    checked = settings.billReminders,
+                    onCheckedChange = onSetBillReminders,
+                )
+                RowDivider()
+                SwitchRow(
+                    title = "Weekly summary",
+                    value = "A recap notification once a week",
+                    checked = settings.weeklySummary,
+                    onCheckedChange = onSetWeeklySummary,
                 )
             }
         }
@@ -282,6 +320,33 @@ private fun SettingsRow(
         }
         Spacer(Modifier.width(12.dp))
         AppIcon(trailing, contentDescription = null, size = 20.dp, tint = trailingTint)
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    value: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary),
+        )
     }
 }
 

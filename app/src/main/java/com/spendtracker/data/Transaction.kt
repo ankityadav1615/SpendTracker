@@ -56,3 +56,10 @@ data class CategoryRule(
     val category: Category,
     val updatedAt: Long,
 )
+
+/** A monthly spending limit the user set for one category, shown on Home and used for over-budget nudges. */
+@Entity(tableName = "category_budgets")
+data class CategoryBudget(
+    @PrimaryKey val category: Category,
+    val amountPaise: Long,
+)

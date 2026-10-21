@@ -82,23 +82,48 @@ interface CategoryRuleDao {
     @Query("SELECT * FROM category_rules")
     suspend fun getAll(): List<CategoryRule>
 
+    @Query("SELECT * FROM category_rules ORDER BY updatedAt DESC")
+    fun observeAll(): Flow<List<CategoryRule>>
+
     @Upsert
     suspend fun upsert(rule: CategoryRule)
+
+    @Query("DELETE FROM category_rules WHERE `key` = :key")
+    suspend fun delete(key: String)
 
     @Query("DELETE FROM category_rules")
     suspend fun deleteAll()
 }
 
+@Dao
+interface CategoryBudgetDao {
+    @Query("SELECT * FROM category_budgets")
+    fun observeAll(): Flow<List<CategoryBudget>>
+
+    @Query("SELECT * FROM category_budgets")
+    suspend fun getAll(): List<CategoryBudget>
+
+    @Upsert
+    suspend fun upsert(budget: CategoryBudget)
+
+    @Query("DELETE FROM category_budgets WHERE category = :category")
+    suspend fun delete(category: Category)
+
+    @Query("DELETE FROM category_budgets")
+    suspend fun deleteAll()
+}
+
 @Database(
-    entities = [Transaction::class, CategoryRule::class],
-    version = 2,
+    entities = [Transaction::class, CategoryRule::class, CategoryBudget::class],
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun categoryRuleDao(): CategoryRuleDao
+    abstract fun categoryBudgetDao(): CategoryBudgetDao
 
     companion object {
         fun create(context: Context): AppDatabase =

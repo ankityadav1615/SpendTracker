@@ -62,9 +62,12 @@ import com.spendtracker.model.ActivityFilter
 import com.spendtracker.model.Category
 import com.spendtracker.model.ReportSide
 import com.spendtracker.model.TransactionType
+import com.spendtracker.notifications.NotificationPermission
 import com.spendtracker.sms.SmsPermission
 import com.spendtracker.ui.screens.ActivityScreen
 import com.spendtracker.ui.screens.AppDocument
+import com.spendtracker.ui.screens.CategoryBudgetsScreen
+import com.spendtracker.ui.screens.CategoryRulesScreen
 import com.spendtracker.ui.screens.DisclosureScreen
 import com.spendtracker.ui.screens.DocumentScreen
 import com.spendtracker.ui.screens.EntrySheet
@@ -96,6 +99,11 @@ fun SpendTrackerApp(viewModel: MainViewModel = viewModel()) {
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         hasPermission = SmsPermission.granted(context)
         if (hasPermission) viewModel.importSms(userRequested = false)
+    }
+    val notificationPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+    val requestNotificationPermissionIfNeeded = {
+        if (!NotificationPermission.granted(context)) notificationPermissionLauncher.launch(NotificationPermission.permissions)
     }
     // Also covers the user changing the permission in Android settings and coming back.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -152,6 +160,7 @@ fun SpendTrackerApp(viewModel: MainViewModel = viewModel()) {
             onRequestPermission = requestPermission,
             onOpenAppSettings = openAppSettings,
             onOpenDocument = { document = it },
+            onRequestNotificationPermission = requestNotificationPermissionIfNeeded,
         )
     }
 }
@@ -194,6 +203,7 @@ private fun MainScreens(
     onRequestPermission: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onOpenDocument: (AppDocument) -> Unit,
+    onRequestNotificationPermission: () -> Unit,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val money by viewModel.money.collectAsStateWithLifecycle()
@@ -227,6 +237,9 @@ private fun MainScreens(
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var periodPanel by rememberSaveable { mutableStateOf(PeriodPanel.NONE) }
     var budgetRequested by rememberSaveable { mutableStateOf(false) }
+    var categoryBudgetsOpen by rememberSaveable { mutableStateOf(false) }
+    var categoryRulesOpen by rememberSaveable { mutableStateOf(false) }
+    val categoryRules by viewModel.categoryRules.collectAsStateWithLifecycle()
     var reportSide by rememberSaveable { mutableStateOf(ReportSide.EXPENSES) }
     var reportChart by rememberSaveable { mutableStateOf(ReportChart.RING) }
     // The add sheet: closed, adding (editId null) or changing an added entry.
@@ -260,6 +273,25 @@ private fun MainScreens(
 
     BackHandler(enabled = tab != Tab.HOME) { onTabChange(Tab.HOME) }
 
+    if (categoryBudgetsOpen) {
+        BackHandler { categoryBudgetsOpen = false }
+        CategoryBudgetsScreen(
+            budgets = money?.budgetStatuses.orEmpty().associate { it.category to it.budgetPaise },
+            onBack = { categoryBudgetsOpen = false },
+            onSetBudget = viewModel::setCategoryBudget,
+        )
+        return
+    }
+    if (categoryRulesOpen) {
+        BackHandler { categoryRulesOpen = false }
+        CategoryRulesScreen(
+            rules = categoryRules,
+            onBack = { categoryRulesOpen = false },
+            onDelete = viewModel::deleteCategoryRule,
+        )
+        return
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -285,6 +317,7 @@ private fun MainScreens(
                     filterKey = ActivityFilter.Of(category).key
                     onTabChange(Tab.ACTIVITY)
                 },
+                onDismissInsight = viewModel::dismissInsight,
             )
 
             Tab.ACTIVITY -> ActivityScreen(
@@ -325,14 +358,26 @@ private fun MainScreens(
                 hasPermission = hasPermission,
                 importing = importing,
                 contentPadding = padding,
+                categoryBudgetCount = money?.budgetStatuses?.size ?: 0,
+                categoryRuleCount = categoryRules.size,
                 onChooseIncomeType = viewModel::chooseIncomeType,
                 onSetPeriodMode = viewModel::setPeriodMode,
                 onSetBudget = viewModel::setBudget,
+                onOpenCategoryBudgets = { categoryBudgetsOpen = true },
+                onOpenCategoryRules = { categoryRulesOpen = true },
                 onSetUpSms = onSetUpSms,
                 onRequestPermission = onRequestPermission,
                 onStopSms = viewModel::stopSms,
                 onOpenAppSettings = onOpenAppSettings,
                 onRescan = { viewModel.importSms(userRequested = true) },
+                onSetBillReminders = { enabled ->
+                    if (enabled) onRequestNotificationPermission()
+                    viewModel.setBillReminders(enabled)
+                },
+                onSetWeeklySummary = { enabled ->
+                    if (enabled) onRequestNotificationPermission()
+                    viewModel.setWeeklySummary(enabled)
+                },
                 onOpenPrivacy = { onOpenDocument(AppDocument.PRIVACY) },
                 onOpenLicences = { onOpenDocument(AppDocument.LICENCES) },
                 onDeleteAll = viewModel::deleteAllData,
