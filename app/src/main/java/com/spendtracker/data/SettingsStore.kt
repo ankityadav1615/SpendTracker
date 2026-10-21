@@ -37,6 +37,7 @@ class SettingsStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val state = MutableStateFlow(read())
+    private val dismissedInsightsState = MutableStateFlow(readDismissedInsights())
 
     val settings: StateFlow<AppSettings> = state.asStateFlow()
 
@@ -67,6 +68,17 @@ class SettingsStore(context: Context) {
     fun clear() {
         prefs.edit { clear() }
         state.value = AppSettings()
+        dismissedInsightsState.value = emptySet()
+    }
+
+    /** Insight ids the user dismissed, kept until their underlying cause changes (same id reappears). */
+    val dismissedInsightIds: StateFlow<Set<String>> get() = dismissedInsightsState.asStateFlow()
+
+    @Synchronized
+    fun dismissInsight(id: String) {
+        val updated = dismissedInsightsState.value + id
+        prefs.edit { putStringSet(KEY_DISMISSED_INSIGHTS, updated) }
+        dismissedInsightsState.value = updated
     }
 
     private fun read() = AppSettings(
@@ -85,6 +97,9 @@ class SettingsStore(context: Context) {
         savingsGoalStartedAtMillis = if (prefs.contains(KEY_GOAL_STARTED)) prefs.getLong(KEY_GOAL_STARTED, 0) else null,
     )
 
+    private fun readDismissedInsights(): Set<String> =
+        prefs.getStringSet(KEY_DISMISSED_INSIGHTS, emptySet())?.toSet() ?: emptySet()
+
     private companion object {
         const val KEY_INCOME_TYPE = "income_type"
         const val KEY_PERIOD_MODE = "period_mode"
@@ -98,5 +113,6 @@ class SettingsStore(context: Context) {
         const val KEY_GOAL_TARGET = "savings_goal_target_paise"
         const val KEY_GOAL_DEADLINE = "savings_goal_deadline_millis"
         const val KEY_GOAL_STARTED = "savings_goal_started_at_millis"
+        const val KEY_DISMISSED_INSIGHTS = "dismissed_insight_ids"
     }
 }

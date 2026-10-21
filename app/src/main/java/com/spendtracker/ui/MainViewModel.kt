@@ -123,12 +123,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Refreshed when the app comes back, so "today" moves on with the date. */
     private val now = MutableStateFlow(System.currentTimeMillis())
 
-    /** Insight ids the user dismissed this session; a nudge comes back once its underlying cause changes. */
-    private val dismissedInsightIds = MutableStateFlow<Set<String>>(emptySet())
-
     val money: StateFlow<MoneyState?> = combine(allTransactions, settings, choice, now, categoryBudgets) { txns, prefs, picked, time, budgets ->
         txns?.let { buildState(it, prefs, picked, time, budgets) }
-    }.combine(dismissedInsightIds) { state, dismissed ->
+    }.combine(settingsStore.dismissedInsightIds) { state, dismissed ->
         state?.copy(insights = state.insights.filterNot { it.id in dismissed })
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -245,7 +242,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissInsight(id: String) {
-        dismissedInsightIds.value = dismissedInsightIds.value + id
+        settingsStore.dismissInsight(id)
     }
 
     /** "Allow SMS access" on the explanation screen; Android's own prompt follows. */
