@@ -2,6 +2,8 @@ package com.spendtracker.data
 
 import androidx.room.withTransaction
 import com.spendtracker.model.Category
+import com.spendtracker.model.ManualEntries
+import com.spendtracker.model.ManualEntry
 import com.spendtracker.parser.RawSms
 import com.spendtracker.parser.TransactionBuilder
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +45,25 @@ class TransactionRepository(private val db: AppDatabase, private val importState
 
     suspend fun setIgnored(transaction: Transaction, ignored: Boolean) =
         transactionDao.setIgnored(transaction.id, ignored)
+
+    /** Saves an entry the user added. Returns its id. */
+    suspend fun addManual(entry: ManualEntry): Long =
+        transactionDao.insert(ManualEntries.toTransaction(entry))
+
+    suspend fun updateManual(existing: Transaction, entry: ManualEntry) {
+        require(existing.isManual) { "Only entries the user added can be edited" }
+        transactionDao.update(ManualEntries.toTransaction(entry, existing))
+    }
+
+    suspend fun deleteManual(transaction: Transaction) {
+        require(transaction.isManual) { "Only entries the user added can be deleted" }
+        transactionDao.deleteById(transaction.id)
+    }
+
+    /** Puts back an entry removed with [deleteManual], keeping its id. */
+    suspend fun restore(transaction: Transaction) {
+        transactionDao.insertAll(listOf(transaction))
+    }
 
     /**
      * Permanently deletes all transactions (hidden ones included) and remembered categories, and forgets

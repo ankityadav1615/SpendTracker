@@ -16,7 +16,7 @@ SpendTracker reads the bank and UPI transaction SMS already on the phone, turns 
 
 ## Positioning
 
-Fully automatic from bank SMS, with no manual entry as the main flow, and nothing leaves the phone: no internet permission, no login, no cloud, no analytics. Corrections the user makes to a category are remembered for that payee.
+Fully automatic from bank SMS, with no manual entry as the main flow, and nothing leaves the phone: no internet permission, no login, no cloud, no analytics. Corrections the user makes to a category are remembered for that payee. Manual entry is the fallback for what SMS can't see (cash spends, payments from accounts without SMS alerts) and the whole flow for people who choose not to share SMS.
 
 ## Operating Context
 
@@ -31,7 +31,8 @@ Fully automatic from bank SMS, with no manual entry as the main flow, and nothin
 - Distribution: Google Play Store and direct APK download from GitHub Releases.
 - Free to use.
 - All data is stored on-device in a local database; the user can delete all of it from inside the app.
-- Undecided: additional UI languages (Hindi and others), budgets per category, export.
+- Reports can be downloaded as PDF or CSV for a chosen range and categories, saved wherever the user picks with Android's file picker.
+- Undecided: additional UI languages (Hindi and others), budgets per category, on-device AI categorisation.
 
 ## Brand Commitments
 
