@@ -136,6 +136,11 @@ fun TransactionSheet(
                 }
             }
 
+            transaction.receiptPath?.let { path ->
+                SectionLabel("Receipt")
+                ReceiptThumbnail(path)
+            }
+
             SectionLabel("Category")
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -370,6 +371,22 @@ fun ScreenTitle(title: String, modifier: Modifier = Modifier, actions: @Composab
     ) {
         Text(title, style = MaterialTheme.typography.headlineMedium)
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+    }
+}
+
+/** Header for a screen pushed over the tabs: a back arrow, then the title. */
+@Composable
+fun BackHeader(title: String, onBack: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .padding(start = 4.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack) { AppIcon(R.drawable.ic_chevron_left, contentDescription = "Back") }
+        Spacer(Modifier.width(4.dp))
+        Text(title, style = MaterialTheme.typography.titleLarge)
     }
 }
 

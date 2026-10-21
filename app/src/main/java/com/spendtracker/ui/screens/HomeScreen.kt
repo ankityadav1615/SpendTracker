@@ -3,6 +3,7 @@ package com.spendtracker.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,11 +40,17 @@ import androidx.compose.ui.unit.sp
 import com.spendtracker.R
 import com.spendtracker.data.AppSettings
 import com.spendtracker.model.AccountBalance
+import com.spendtracker.model.BudgetStatus
 import com.spendtracker.model.Category
 import com.spendtracker.model.CategoryTotal
+import com.spendtracker.model.CategorySpike
+import com.spendtracker.model.Insight
 import com.spendtracker.model.Money
 import com.spendtracker.model.MoneyLeft
+import com.spendtracker.model.OverBudget
 import com.spendtracker.model.PeriodChoice
+import com.spendtracker.model.SavingsGoalStatus
+import com.spendtracker.model.UpcomingBill
 import com.spendtracker.ui.MoneyState
 import com.spendtracker.ui.theme.SpendTheme
 import kotlin.math.roundToInt
@@ -62,6 +69,8 @@ fun HomeScreen(
     onOpenAppSettings: () -> Unit,
     onSetBudget: () -> Unit,
     onOpenCategory: (Category) -> Unit,
+    onDismissInsight: (String) -> Unit = {},
+    onOpenSavingsGoal: () -> Unit = {},
 ) {
     LazyColumn(
         contentPadding = screenPadding(contentPadding),
@@ -80,16 +89,140 @@ fun HomeScreen(
             if (settings.smsConsent && hasPermission) item { NothingYetCard(importing) }
             return@LazyColumn
         }
+        if (state.insights.isNotEmpty()) {
+            item { InsightsCard(state.insights, onDismiss = onDismissInsight) }
+        }
         item {
             MoneyCard(
                 state = state,
                 onSetBudget = onSetBudget.takeIf { state.period.budgetApplies && settings.monthlyBudgetPaise == null },
             )
         }
+        if (state.budgetStatuses.isNotEmpty()) {
+            item { BudgetsCard(state.budgetStatuses, onOpenCategory) }
+        }
+        if (state.savingsGoal != null) {
+            item { SavingsGoalCard(state.savingsGoal, onClick = onOpenSavingsGoal) }
+        }
         item { WhereItWentCard(state, onOpenCategory) }
         if (state.balances.isNotEmpty()) {
             item { BalancesCard(state.balances, state) }
         }
+    }
+}
+
+@Composable
+private fun InsightsCard(insights: List<Insight>, onDismiss: (String) -> Unit) {
+    SpendCard(contentPadding = PaddingValues(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)) {
+        insights.forEachIndexed { index, insight ->
+            if (index > 0) RowDivider()
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Tile(insightTint(insight)) {
+                    AppIcon(insightIcon(insight), contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.onSurface)
+                }
+                Spacer(Modifier.width(14.dp))
+                Text(insight.message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onDismiss(insight.id) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppIcon(R.drawable.ic_close, contentDescription = "Dismiss", size = 16.dp, tint = SpendTheme.colors.muted)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun insightTint(insight: Insight) = when (insight) {
+    is OverBudget -> MaterialTheme.colorScheme.errorContainer
+    is UpcomingBill -> MaterialTheme.colorScheme.primaryContainer
+    is CategorySpike -> SpendTheme.colors.tint
+}
+
+private fun insightIcon(insight: Insight): Int = when (insight) {
+    is OverBudget -> R.drawable.ic_chart_donut
+    is UpcomingBill -> R.drawable.ic_calendar
+    is CategorySpike -> R.drawable.ic_chart_bars
+}
+
+@Composable
+private fun BudgetsCard(statuses: List<BudgetStatus>, onOpenCategory: (Category) -> Unit) {
+    SpendCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp)) {
+        Text("Category budgets", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        statuses.forEachIndexed { index, status ->
+            if (index > 0) RowDivider()
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenCategory(status.category) }
+                    .padding(vertical = 10.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(status.category.label, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${Money.format(status.spentPaise)} / ${Money.format(status.budgetPaise)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (status.overBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { status.share.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = if (status.overBudget) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    trackColor = SpendTheme.colors.tint,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavingsGoalCard(goal: SavingsGoalStatus, onClick: () -> Unit) {
+    SpendCard(
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 16.dp),
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(goal.name, style = MaterialTheme.typography.titleLarge)
+            Text(
+                "${goal.percent}%",
+                style = MaterialTheme.typography.titleLarge,
+                color = if (goal.reached) SpendTheme.colors.credit else MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        LinearProgressIndicator(
+            progress = { (goal.percent / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp)),
+            color = if (goal.reached) SpendTheme.colors.credit else MaterialTheme.colorScheme.primary,
+            trackColor = SpendTheme.colors.tint,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            if (goal.reached) {
+                "Goal reached! ${Money.format(goal.savedPaise)} saved"
+            } else {
+                "${Money.format(goal.savedPaise)} of ${Money.format(goal.targetPaise)} saved"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -13,8 +13,14 @@ class TransactionRepository(private val db: AppDatabase, private val importState
 
     private val transactionDao = db.transactionDao()
     private val ruleDao = db.categoryRuleDao()
+    private val budgetDao = db.categoryBudgetDao()
 
     val transactions: Flow<List<Transaction>> = transactionDao.observeAll()
+
+    /** Remembered payee → category corrections, newest first. */
+    val categoryRules: Flow<List<CategoryRule>> = ruleDao.observeAll()
+
+    val categoryBudgets: Flow<List<CategoryBudget>> = budgetDao.observeAll()
 
     /** Parses the messages and stores the transactions. Returns how many new transactions were added. */
     suspend fun ingest(messages: List<RawSms>): Int {
@@ -46,6 +52,14 @@ class TransactionRepository(private val db: AppDatabase, private val importState
     suspend fun setIgnored(transaction: Transaction, ignored: Boolean) =
         transactionDao.setIgnored(transaction.id, ignored)
 
+    /** Forgets a remembered payee → category rule; past and future transactions keep whatever category they have. */
+    suspend fun deleteCategoryRule(key: String) = ruleDao.delete(key)
+
+    /** Sets or, with a null or non-positive amount, removes the monthly budget for [category]. */
+    suspend fun setCategoryBudget(category: Category, amountPaise: Long?) {
+        if (amountPaise == null || amountPaise <= 0) budgetDao.delete(category) else budgetDao.upsert(CategoryBudget(category, amountPaise))
+    }
+
     /** Saves an entry the user added. Returns its id. */
     suspend fun addManual(entry: ManualEntry): Long =
         transactionDao.insert(ManualEntries.toTransaction(entry))
@@ -75,6 +89,7 @@ class TransactionRepository(private val db: AppDatabase, private val importState
             db.withTransaction {
                 transactionDao.deleteAll()
                 ruleDao.deleteAll()
+                budgetDao.deleteAll()
             }
             importState.clear()
         }

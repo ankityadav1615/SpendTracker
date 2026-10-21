@@ -33,6 +33,8 @@ UPI apps and NPCI don't offer a personal transaction API, so bank SMS is the mos
 
    Alternatively, with USB debugging on, run `adb install app-debug.apk`.
 
+Debug APKs, from CI or built locally, are signed with the shared `app/debug.keystore`, so either can be installed over the other. A debug APK signed with a different key, such as one built before this keystore was added, must be uninstalled first; uninstalling deletes the app's data.
+
 ## Grant SMS permission
 
 1. Open SpendTracker, choose where your money comes from, and tap **Continue**.
@@ -74,7 +76,7 @@ Releases are signed with an upload key that you create once. If no key is config
 keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-The keystore is PKCS12, so the key password is the same as the keystore password. Keep `upload.jks` and its password outside the repository and backed up. `*.jks`, `*.keystore` and `keystore.properties` are git-ignored; never commit them. APKs on GitHub Releases are signed with this key, so if it is lost, people who installed from GitHub must uninstall before they can install a newer version. With Play App Signing, a lost upload key can be reset through Play Console.
+The keystore is PKCS12, so the key password is the same as the keystore password. Keep `upload.jks` and its password outside the repository and backed up. `*.jks`, `*.keystore` and `keystore.properties` are git-ignored; never commit them. The only exception is `app/debug.keystore`, a public debug key that is never used for releases. APKs on GitHub Releases are signed with this key, so if it is lost, people who installed from GitHub must uninstall before they can install a newer version. With Play App Signing, a lost upload key can be reset through Play Console.
 
 ### 2. Build a signed release locally
 

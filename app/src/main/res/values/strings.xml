@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SpendTracker</string>
+    <string name="widget_description">This month\'s spending at a glance</string>
+    <string name="shortcut_add_expense_short">Add expense</string>
+    <string name="shortcut_add_expense_long">Add an expense</string>
+    <string name="shortcut_add_income_short">Add income</string>
+    <string name="shortcut_add_income_long">Add income</string>
 </resources>

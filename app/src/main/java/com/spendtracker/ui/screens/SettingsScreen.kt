@@ -21,12 +21,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,8 +56,9 @@ import com.spendtracker.model.IncomeType
 import com.spendtracker.model.Money
 import com.spendtracker.model.PeriodMode
 import com.spendtracker.ui.theme.SpendTheme
+import java.time.LocalDate
 
-private enum class SettingsDialog { NONE, INCOME, PERIODS, BUDGET, STOP_SMS, DELETE }
+private enum class SettingsDialog { NONE, INCOME, PERIODS, BUDGET, GOAL, STOP_SMS, DELETE }
 
 @Composable
 fun SettingsScreen(
@@ -58,25 +66,41 @@ fun SettingsScreen(
     hasPermission: Boolean,
     importing: Boolean,
     contentPadding: PaddingValues,
+    categoryBudgetCount: Int,
+    categoryRuleCount: Int,
     onChooseIncomeType: (IncomeType) -> Unit,
     onSetPeriodMode: (PeriodMode, Int) -> Unit,
     onSetBudget: (Long?) -> Unit,
+    onOpenCategoryBudgets: () -> Unit,
+    onOpenCategoryRules: () -> Unit,
     onSetUpSms: () -> Unit,
     onRequestPermission: () -> Unit,
     onStopSms: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onRescan: () -> Unit,
+    onSetBillReminders: (Boolean) -> Unit,
+    onSetWeeklySummary: (Boolean) -> Unit,
+    onSetSavingsGoal: (String, Long, Long?) -> Unit,
+    onClearSavingsGoal: () -> Unit,
     onOpenPrivacy: () -> Unit,
     onOpenLicences: () -> Unit,
     onDeleteAll: () -> Unit,
     budgetRequested: Boolean,
     onBudgetRequestHandled: () -> Unit,
+    savingsGoalRequested: Boolean,
+    onSavingsGoalRequestHandled: () -> Unit,
 ) {
     var dialog by rememberSaveable { mutableStateOf(SettingsDialog.NONE) }
     LaunchedEffect(budgetRequested) {
         if (budgetRequested) {
             dialog = SettingsDialog.BUDGET
             onBudgetRequestHandled()
+        }
+    }
+    LaunchedEffect(savingsGoalRequested) {
+        if (savingsGoalRequested) {
+            dialog = SettingsDialog.GOAL
+            onSavingsGoalRequestHandled()
         }
     }
     val smsOn = settings.smsConsent && hasPermission
@@ -98,6 +122,24 @@ fun SettingsScreen(
                     "Monthly budget",
                     settings.monthlyBudgetPaise?.let { Money.format(it) } ?: "Not set",
                 ) { dialog = SettingsDialog.BUDGET }
+                RowDivider()
+                SettingsRow(
+                    "Category budgets",
+                    if (categoryBudgetCount == 0) "Not set" else "$categoryBudgetCount " + if (categoryBudgetCount == 1) "category" else "categories",
+                    onClick = onOpenCategoryBudgets,
+                )
+                RowDivider()
+                SettingsRow(
+                    "Category rules",
+                    if (categoryRuleCount == 0) "None remembered yet" else "$categoryRuleCount remembered",
+                    onClick = onOpenCategoryRules,
+                )
+                RowDivider()
+                SettingsRow(
+                    "Savings goal",
+                    settings.savingsGoalName?.let { "$it · ${Money.format(settings.savingsGoalTargetPaise ?: 0)}" } ?: "Not set",
+                    onClick = { dialog = SettingsDialog.GOAL },
+                )
             }
         }
         item { GroupLabel("Bank messages") }
@@ -130,6 +172,24 @@ fun SettingsScreen(
                     trailingTint = if (smsOn) MaterialTheme.colorScheme.primary else SpendTheme.colors.muted,
                     enabled = smsOn && !importing,
                     onClick = onRescan,
+                )
+            }
+        }
+        item { GroupLabel("Reminders") }
+        item {
+            SettingsGroup {
+                SwitchRow(
+                    title = "Bill & EMI reminders",
+                    value = "Nudge the day before a recurring payment is due",
+                    checked = settings.billReminders,
+                    onCheckedChange = onSetBillReminders,
+                )
+                RowDivider()
+                SwitchRow(
+                    title = "Weekly summary",
+                    value = "A recap notification once a week",
+                    checked = settings.weeklySummary,
+                    onCheckedChange = onSetWeeklySummary,
                 )
             }
         }
@@ -174,6 +234,20 @@ fun SettingsScreen(
             onSetBudget(it)
             close()
         }
+        SettingsDialog.GOAL -> SavingsGoalDialog(
+            name = settings.savingsGoalName,
+            targetPaise = settings.savingsGoalTargetPaise,
+            deadlineMillis = settings.savingsGoalDeadlineMillis,
+            onDismiss = close,
+            onSave = { name, target, deadline ->
+                onSetSavingsGoal(name, target, deadline)
+                close()
+            },
+            onClear = {
+                onClearSavingsGoal()
+                close()
+            },
+        )
         SettingsDialog.STOP_SMS -> AlertDialog(
             onDismissRequest = close,
             title = { Text("Stop reading SMS?") },
@@ -282,6 +356,33 @@ private fun SettingsRow(
         }
         Spacer(Modifier.width(12.dp))
         AppIcon(trailing, contentDescription = null, size = 20.dp, tint = trailingTint)
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    value: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary),
+        )
     }
 }
 
@@ -415,3 +516,145 @@ private fun BudgetDialog(current: Long?, onDismiss: () -> Unit, onSave: (Long?) 
         },
     )
 }
+
+@Composable
+private fun SavingsGoalDialog(
+    name: String?,
+    targetPaise: Long?,
+    deadlineMillis: Long?,
+    onDismiss: () -> Unit,
+    onSave: (String, Long, Long?) -> Unit,
+    onClear: () -> Unit,
+) {
+    val today = LocalDate.now()
+    var nameText by rememberSaveable { mutableStateOf(name.orEmpty()) }
+    var amountText by rememberSaveable { mutableStateOf(targetPaise?.let { (it / 100).toString() }.orEmpty()) }
+    var deadlineEpochDay by rememberSaveable {
+        mutableStateOf(deadlineMillis?.toLocalDate()?.toEpochDay() ?: NO_DEADLINE)
+    }
+    var pickingDate by rememberSaveable { mutableStateOf(false) }
+    val deadline = deadlineEpochDay.takeIf { it != NO_DEADLINE }?.let { LocalDate.ofEpochDay(it) }
+    val rupees = amountText.toLongOrNull()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Savings goal") },
+        text = {
+            Column {
+                Text(
+                    "Progress counts what you save or invest from today onward.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(12.dp))
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it.take(40) },
+                    placeholder = { Text("New laptop") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.size(8.dp))
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { value -> amountText = value.filter { it.isDigit() }.take(9) },
+                    prefix = { Text("₹") },
+                    placeholder = { Text("50000") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.size(8.dp))
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { pickingDate = true }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        deadline?.let { "By ${ordinal(it.dayOfMonth)} ${it.month.name.lowercase().replaceFirstChar(Char::uppercase)} ${it.year}" }
+                            ?: "No deadline (optional)",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    AppIcon(R.drawable.ic_calendar, contentDescription = null, size = 20.dp, tint = SpendTheme.colors.muted)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(nameText.trim(), (rupees ?: 0) * 100, deadline?.toUtcMillis()) },
+                enabled = nameText.isNotBlank() && rupees != null && rupees > 0,
+            ) {
+                Text("Save", color = SpendTheme.colors.actionText)
+            }
+        },
+        dismissButton = {
+            Row {
+                if (name != null) {
+                    TextButton(onClick = onClear) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+                }
+                TextButton(onClick = onDismiss) { Text("Cancel", color = SpendTheme.colors.actionText) }
+            }
+        },
+    )
+
+    if (pickingDate) {
+        GoalDeadlinePickerDialog(
+            initial = deadline ?: today,
+            today = today,
+            onPick = {
+                deadlineEpochDay = it.toEpochDay()
+                pickingDate = false
+            },
+            onDismiss = { pickingDate = false },
+        )
+    }
+}
+
+/** A goal's deadline must be today or later. */
+@Composable
+private fun GoalDeadlinePickerDialog(initial: LocalDate, today: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val todayMillis = today.toUtcMillis()
+    val selectable = remember(todayMillis) {
+        object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= todayMillis
+
+            override fun isSelectableYear(year: Int) = year >= today.year
+        }
+    }
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial.toUtcMillis(),
+        yearRange = today.year..(today.year + 20),
+        selectableDates = selectable,
+    )
+    val pickerColors = DatePickerDefaults.colors(
+        containerColor = MaterialTheme.colorScheme.background,
+        selectedDayContainerColor = MaterialTheme.colorScheme.primary,
+        selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
+        todayDateBorderColor = MaterialTheme.colorScheme.onSurface,
+        todayContentColor = MaterialTheme.colorScheme.onSurface,
+        selectedYearContainerColor = MaterialTheme.colorScheme.primary,
+        selectedYearContentColor = MaterialTheme.colorScheme.onPrimary,
+        dividerColor = SpendTheme.colors.line,
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { state.selectedDateMillis?.let { onPick(it.toLocalDate()) } }, enabled = state.selectedDateMillis != null) {
+                Text("OK", style = MaterialTheme.typography.labelLarge, color = SpendTheme.colors.actionText)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", style = MaterialTheme.typography.labelLarge, color = SpendTheme.colors.actionText)
+            }
+        },
+        colors = pickerColors,
+    ) {
+        DatePicker(state = state, colors = pickerColors, showModeToggle = false)
+    }
+}
+
+private const val NO_DEADLINE = Long.MIN_VALUE

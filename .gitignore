@@ -12,6 +12,7 @@
 *.apk
 *.aab
 *.keystore
+!/app/debug.keystore
 *.jks
 keystore.properties
 /.impeccable/

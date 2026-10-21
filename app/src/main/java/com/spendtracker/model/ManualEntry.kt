@@ -24,6 +24,8 @@ data class ManualEntry(
     val timestamp: Long,
     val method: PaymentMethod?,
     val note: String?,
+    /** Absolute path to a receipt photo the user attached; null for none. */
+    val receiptPath: String? = null,
 )
 
 object ManualEntries {
@@ -85,6 +87,7 @@ object ManualEntries {
             source = EntrySource.MANUAL,
             method = entry.method,
             note = note,
+            receiptPath = entry.receiptPath,
         )
     }
 }

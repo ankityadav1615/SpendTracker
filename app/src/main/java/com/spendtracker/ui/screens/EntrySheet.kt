@@ -1,17 +1,26 @@
 package com.spendtracker.ui.screens
 
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +54,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -65,11 +78,15 @@ import com.spendtracker.model.ManualEntries
 import com.spendtracker.model.ManualEntry
 import com.spendtracker.model.PaymentMethod
 import com.spendtracker.model.TransactionType
+import com.spendtracker.receipts.ReceiptStorage
 import com.spendtracker.ui.theme.AmountStyle
 import com.spendtracker.ui.theme.SpendTheme
+import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Everyday categories first, so the common ones fit before "More". */
 private val EXPENSE_ORDER = listOf(
@@ -109,10 +126,26 @@ fun EntrySheet(
     var showAll by rememberSaveable(key) { mutableStateOf(false) }
     var picking by rememberSaveable(key) { mutableStateOf(false) }
     var tried by rememberSaveable(key) { mutableStateOf(false) }
+    var receiptPath by rememberSaveable(key) { mutableStateOf(existing?.receiptPath) }
     val date = LocalDate.ofEpochDay(epochDay)
     val expense = type == TransactionType.DEBIT
     val paise = ManualEntries.parseAmount(amount)
     val amountFocus = remember { FocusRequester() }
+    val context = LocalContext.current
+    var pendingCaptureFile by remember { mutableStateOf<File?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        val file = pendingCaptureFile
+        if (captured && file != null) {
+            ReceiptStorage.finishCapture(file)
+            receiptPath = file.absolutePath
+        } else {
+            file?.delete()
+        }
+        pendingCaptureFile = null
+    }
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { picked ->
+        if (picked != null) ReceiptStorage.copyPicked(context, picked)?.let { receiptPath = it }
+    }
 
     fun save() {
         tried = true
@@ -132,6 +165,7 @@ fun EntrySheet(
                 timestamp = timestamp,
                 method = if (expense) method else null,
                 note = note,
+                receiptPath = receiptPath,
             ),
         )
     }
@@ -305,6 +339,41 @@ fun EntrySheet(
                 )
             }
 
+            SectionLabel("Receipt")
+            val currentReceiptPath = receiptPath
+            if (currentReceiptPath != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ReceiptThumbnail(currentReceiptPath)
+                    Spacer(Modifier.width(12.dp))
+                    TextButton(onClick = { receiptPath = null }) {
+                        AppIcon(R.drawable.ic_trash, contentDescription = null, size = 18.dp, tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Remove", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlineButton(
+                        "Camera",
+                        onClick = {
+                            val (file, uri) = ReceiptStorage.newCaptureTarget(context)
+                            pendingCaptureFile = file
+                            cameraLauncher.launch(uri)
+                        },
+                        modifier = Modifier.weight(1f),
+                        icon = R.drawable.ic_camera,
+                    )
+                    OutlineButton(
+                        "Gallery",
+                        onClick = {
+                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                        modifier = Modifier.weight(1f),
+                        icon = R.drawable.ic_image,
+                    )
+                }
+            }
+
             PrimaryButton(
                 when {
                     existing != null -> "Save changes"
@@ -334,6 +403,34 @@ private fun dateText(date: LocalDate, today: LocalDate): String = when (date) {
     today -> "Today, " + DateRanges.date(date, today)
     today.minusDays(1) -> "Yesterday, " + DateRanges.date(date, today)
     else -> DateRanges.date(date, today)
+}
+
+/** Decodes the receipt photo off the main thread and shows it as a small square preview. */
+@Composable
+internal fun ReceiptThumbnail(path: String) {
+    var bitmap by remember(path) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(path) {
+        bitmap = withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path) }
+    }
+    val decoded = bitmap
+    if (decoded != null) {
+        Image(
+            decoded.asImageBitmap(),
+            contentDescription = "Receipt photo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, SpendTheme.colors.line, RoundedCornerShape(14.dp)),
+        )
+    } else {
+        Box(
+            Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(SpendTheme.colors.card),
+        )
+    }
 }
 
 @Composable

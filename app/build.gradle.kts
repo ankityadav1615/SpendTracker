@@ -42,6 +42,13 @@ android {
     }
 
     signingConfigs {
+        // A shared debug key, so debug APKs from CI and from any developer machine can update each other.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         create("release") {
             storeFile = releaseKeystore?.let { rootProject.file(it) }
             storePassword = releaseKeystorePassword
@@ -121,6 +128,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
