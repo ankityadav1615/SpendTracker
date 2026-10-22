@@ -40,6 +40,8 @@ UPI apps and NPCI don't offer a personal transaction API, so bank SMS is the mos
 
 Debug APKs, from CI or built locally, are signed with the shared `app/debug.keystore`, so either can be installed over the other. A debug APK signed with a different key, such as one built before this keystore was added, must be uninstalled first; uninstalling deletes the app's data.
 
+Version 3.1.1 changed the app ID from `com.spendtracker` to `com.devcodearmy.spendtracker` (the old ID is taken on Google Play). If you have 3.1.0 or older, the new version installs as a second SpendTracker instead of updating it, and starts with no data until it imports your SMS. Uninstall the old one afterwards. Entries you added by hand in the old app don't move across.
+
 ## Grant SMS permission
 
 1. Open SpendTracker, choose where your money comes from, and tap **Continue**.
@@ -149,6 +151,7 @@ Everything Play asks for is in [`store/`](store): the listing text and graphics 
 
 - [ ] **Developer account:** a personal account created after 13 November 2023 must run a **closed test with at least 12 testers opted in for 14 days in a row** before it can apply for production. Find the testers early.
 - [ ] **Upload the AAB** (`SpendTracker-<tag>.aab`), not the APK. Keep Play App Signing on, with `upload.jks` as the upload key.
+- [ ] **Package name:** `com.devcodearmy.spendtracker`, the `applicationId` in `app/build.gradle.kts`. Play fixes it for good when the app is created, so don't change it afterwards.
 - [ ] **Store listing:** title, short and full description, icon (`store/graphics/icon-512.png`), feature graphic (`store/graphics/feature-graphic-1024x500.png`) and phone screenshots (`store/screenshots/`). Category Finance, country India.
 - [ ] **Permissions Declaration Form** (Play Console → *App content → Sensitive app permissions*): declare `READ_SMS` and `RECEIVE_SMS` and choose the **SMS-based money management** exception. Play's [Use of SMS or Call Log permission groups](https://support.google.com/googleplay/android-developer/answer/10208820) policy lists it for apps that track and manage budgets. It is an exception, so approval is subject to Play's review and policy changes.
 - [ ] **Prominent disclosure:** Play requires an in-app explanation of why SMS are read, shown before the Android permission prompt and needing an explicit "agree". The app's SMS explanation screen does this; keep it in place.
