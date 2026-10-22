@@ -34,11 +34,13 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.spendtracker"
+        // The Google Play package name, which can never change once the app is on Play. It differs from
+        // `namespace` because com.spendtracker is taken on Play. Keep res/xml/shortcuts.xml in step.
+        applicationId = "com.devcodearmy.spendtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "3.1.0"
+        versionCode = 5
+        versionName = "3.1.1"
     }
 
     signingConfigs {

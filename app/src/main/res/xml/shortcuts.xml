@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Static launcher shortcuts for quickly jumping into the add-entry sheet. -->
+<!-- Static launcher shortcuts for quickly jumping into the add-entry sheet.
+     targetPackage must equal applicationId in app/build.gradle.kts (resource files can't use ${applicationId}). -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
         android:shortcutId="add_expense"
@@ -9,7 +10,7 @@
         android:shortcutLongLabel="@string/shortcut_add_expense_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.spendtracker"
+            android:targetPackage="com.devcodearmy.spendtracker"
             android:targetClass="com.spendtracker.MainActivity">
             <extra android:name="shortcut_action" android:value="add_expense" />
         </intent>
@@ -22,7 +23,7 @@
         android:shortcutLongLabel="@string/shortcut_add_income_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.spendtracker"
+            android:targetPackage="com.devcodearmy.spendtracker"
             android:targetClass="com.spendtracker.MainActivity">
             <extra android:name="shortcut_action" android:value="add_income" />
         </intent>

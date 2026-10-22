@@ -16,6 +16,7 @@ A step-by-step guide to publishing SpendTracker, with the answer to every *App c
 | Field | Answer |
 | --- | --- |
 | App name | SpendTracker: Expense Tracker |
+| Package name | `com.devcodearmy.spendtracker`. Click **Check availability**. It must match `applicationId` in `app/build.gradle.kts` and can never be changed after the app is created. (`com.spendtracker` belongs to another developer's app on Play.) |
 | Default language | English (India) – en-IN |
 | App or game | App |
 | Free or paid | Free |
@@ -40,6 +41,7 @@ The same values are stored as GitHub Actions secrets (`SPENDTRACKER_KEYSTORE_BAS
 
 - **Back up** the `.jks` file and its password outside this PC, for example in a password manager and on a second drive. If the upload key is ever lost or leaked, the account owner can ask for an upload key reset in **Test and release → App integrity**.
 - Apps installed from Play are signed with Google's key, while APKs from GitHub Releases are signed with the upload key. Android won't update one with the other, so a phone that switches between them must uninstall first, which deletes the app's data.
+- Versions up to 3.1.0 used the app ID `com.spendtracker`. From 3.1.1 the ID is `com.devcodearmy.spendtracker`, so Android treats the new version as a different app: it installs next to the old one instead of updating it, and the old app's data doesn't carry over. Uninstall the old SpendTracker once the new one has imported your SMS, or both will keep reading them.
 
 ## 4. App content
 
