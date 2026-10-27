@@ -105,12 +105,12 @@ private fun RuleRow(rule: CategoryRuleInfo, onDelete: () -> Unit) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CategoryTile(rule.category)
+        CategoryTile(rule.category, customName = rule.customCategory)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(rule.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                "${if (rule.type == TransactionType.DEBIT) "Spend" else "Income"} · ${rule.category.label}",
+                "${if (rule.type == TransactionType.DEBIT) "Spend" else "Income"} · ${rule.label}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

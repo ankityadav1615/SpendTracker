@@ -1,6 +1,7 @@
 package com.spendtracker.model
 
 import com.spendtracker.data.Transaction
+import com.spendtracker.data.categoryLabel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -27,7 +28,13 @@ data class ReportLine(
     val share: Float,
     /** Null when there is nothing to compare with. */
     val change: Change?,
-)
+    val label: String = category.label,
+) {
+    /** True for one of the user's own categories, stored on top of [category]. */
+    val isCustom: Boolean get() = label != category.label
+
+    val customName: String? get() = label.takeIf { isCustom }
+}
 
 enum class TrendUnit(val noun: String) { DAY("day"), WEEK("week"), MONTH("month") }
 
@@ -73,14 +80,19 @@ object Reports {
         val total = totals.values.sumOf { it.first }
         val before = previous?.let { totals(side, it, cashCovered) }
         return totals.entries
-            .sortedWith(compareByDescending<Map.Entry<Category, Pair<Long, Int>>> { it.value.first }.thenBy { it.key.ordinal })
-            .map { (category, value) ->
+            .sortedWith(
+                compareByDescending<Map.Entry<Pair<Category, String>, Pair<Long, Int>>> { it.value.first }
+                    .thenBy { it.key.second.lowercase() },
+            )
+            .map { (key, value) ->
+                val category = key.first
                 ReportLine(
                     category = category,
+                    label = key.second,
                     amountPaise = value.first,
                     count = value.second,
                     share = if (total > 0) (value.first.toDouble() / total).toFloat() else 0f,
-                    change = before?.let { change(value.first, it[category]?.first ?: 0L) },
+                    change = before?.let { change(value.first, it[key]?.first ?: 0L) },
                 )
             }
     }
@@ -187,13 +199,18 @@ object Reports {
         return Trend(unit, buckets.mapIndexed { i, (a, b) -> TrendBar(a, b, amounts[i]) }, days)
     }
 
-    private fun totals(side: ReportSide, transactions: List<Transaction>, cashCovered: Map<Long, Long>): Map<Category, Pair<Long, Int>> {
-        val totals = linkedMapOf<Category, Pair<Long, Int>>()
+    private fun totals(
+        side: ReportSide,
+        transactions: List<Transaction>,
+        cashCovered: Map<Long, Long>,
+    ): Map<Pair<Category, String>, Pair<Long, Int>> {
+        val totals = linkedMapOf<Pair<Category, String>, Pair<Long, Int>>()
         for (txn in transactions) {
             val amount = amountFor(side, txn, cashCovered)
             if (amount <= 0) continue
-            val (sum, count) = totals[txn.category] ?: (0L to 0)
-            totals[txn.category] = (sum + amount) to (count + 1)
+            val key = txn.category to txn.categoryLabel
+            val (sum, count) = totals[key] ?: (0L to 0)
+            totals[key] = (sum + amount) to (count + 1)
         }
         return totals
     }

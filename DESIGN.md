@@ -129,9 +129,9 @@ The Home headline amount is a one-off: Baloo 700 at about 56sp, with "left" or "
   1. The period bar.
   2. The money-left card: the headline, one sentence of context, the spend strip and a legend.
   3. "Where it went": categories sorted by amount, each showing its count and share.
-  4. Bank balances: the latest balance per account, merged across mask lengths.
-  5. An optional budget card.
+  4. An optional budget card.
 
+  Bank balances are not shown: SMS balances go stale and disagree across banks, so testers found them misleading.
   Tapping a category opens Activity filtered to it.
 - **Activity.** It shows:
   - A title and a search toggle.
@@ -142,9 +142,11 @@ The Home headline amount is a one-off: Baloo 700 at about 56sp, with "left" or "
 - **Transaction sheet** (a modal bottom sheet). It contains, in order:
   1. A header with the payee, the "Paid/Received · when" line, and the large amount.
   2. A detail card.
-  3. Category chips, and a "Remember for every payment to …" checkbox.
+  3. Built-in category chips, then "Your categories": the user's own chips (most used first, extras folded behind
+     "More (N)") and a "+ New" chip. Then a "Remember for every payment to …" checkbox.
   4. The original SMS in a bubble.
-  5. "Hide this transaction".
+  5. "Not a real payment", for offers, reward points and spam. Its dialog can also block the sender; the block
+     checkbox starts off for bank sender IDs. Blocks are undone in Settings › Blocked senders.
 
   For an entry added by hand, the detail card shows how it was paid, "Added: By you" and the note; there is no
   remember checkbox or SMS bubble, and the sheet ends with "Edit" and a red "Delete" (with Undo in a snackbar).

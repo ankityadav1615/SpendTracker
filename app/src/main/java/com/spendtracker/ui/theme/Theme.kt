@@ -2,6 +2,7 @@ package com.spendtracker.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -67,6 +68,26 @@ data class SpendColors(
     /** Soft tile behind a category icon. */
     fun categoryTile(category: Category): Color =
         category(category).copy(alpha = if (isDark) 0.20f else 0.14f).compositeOver(card)
+
+    /** Colour of a category the user made, picked from its name so it stays the same everywhere. */
+    fun custom(name: String): Color {
+        val base = Color(CUSTOM_PALETTE[Math.floorMod(name.trim().lowercase().hashCode(), CUSTOM_PALETTE.size)])
+        return if (isDark) lerp(base, Color.White, 0.35f) else base
+    }
+
+    fun customTile(name: String): Color = custom(name).copy(alpha = if (isDark) 0.20f else 0.14f).compositeOver(card)
+
+    /** [custom] for the user's own categories, otherwise the built-in category colour. */
+    fun category(category: Category, customName: String?): Color =
+        if (customName.isNullOrBlank()) category(category) else custom(customName)
+
+    private companion object {
+        /** Distinct from the built-in category colours, so a custom category never looks like one of them. */
+        val CUSTOM_PALETTE = longArrayOf(
+            0xFF9C4F2E, 0xFF2E6F9C, 0xFF7A4FA0, 0xFF3C8A5A, 0xFFA0396A,
+            0xFF8A7A1F, 0xFF2F8A8F, 0xFFB0612A, 0xFF5A5FA8, 0xFF6F8A2F,
+        )
+    }
 }
 
 private val LightSpend = SpendColors(
@@ -225,12 +246,11 @@ object SpendTheme {
 
 @Composable
 fun SpendTrackerTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    val colorScheme = if (darkTheme) DarkColors else LightColors
     CompositionLocalProvider(LocalSpendColors provides if (darkTheme) DarkSpend else LightSpend) {
-        MaterialTheme(
-            colorScheme = if (darkTheme) DarkColors else LightColors,
-            typography = AppTypography,
-            shapes = AppShapes,
-            content = content,
-        )
+        MaterialTheme(colorScheme = colorScheme, typography = AppTypography, shapes = AppShapes) {
+            // Screens drawn straight on the background (no Surface/Scaffold) would otherwise get black text in dark mode.
+            CompositionLocalProvider(LocalContentColor provides colorScheme.onBackground, content = content)
+        }
     }
 }

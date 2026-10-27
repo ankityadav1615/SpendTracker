@@ -115,7 +115,7 @@ fun IconToggle(icons: List<Pair<Int, String>>, selected: Int, onSelect: (Int) ->
     }
 }
 
-/** A selectable chip; the selected one turns dark with a check mark. */
+/** A selectable chip; the selected one turns dark with a check mark. [dot] marks one of the user's own categories. */
 @Composable
 fun ChoiceChip(
     label: String,
@@ -123,18 +123,22 @@ fun ChoiceChip(
     onClick: () -> Unit,
     @DrawableRes icon: Int? = null,
     iconTint: Color = Color.Unspecified,
+    dot: Color? = null,
 ) {
     val colors = SpendTheme.colors
     FilterChip(
         selected = selected,
         onClick = onClick,
-        label = { Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.5.sp)) },
+        label = { Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.5.sp), maxLines = 1) },
         leadingIcon = when {
             selected -> {
                 { AppIcon(R.drawable.ic_check, contentDescription = null, size = 18.dp, tint = MaterialTheme.colorScheme.onSecondaryContainer) }
             }
             icon != null -> {
                 { AppIcon(icon, contentDescription = null, size = 18.dp, tint = iconTint) }
+            }
+            dot != null -> {
+                { Box(Modifier.padding(4.dp).size(10.dp).clip(CircleShape).background(dot)) }
             }
             else -> null
         },

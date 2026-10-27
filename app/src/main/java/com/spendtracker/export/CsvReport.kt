@@ -1,6 +1,7 @@
 package com.spendtracker.export
 
 import com.spendtracker.data.displayName
+import com.spendtracker.data.categoryLabel
 import com.spendtracker.data.isManual
 import com.spendtracker.model.Money
 import com.spendtracker.model.ReportLine
@@ -56,7 +57,7 @@ object CsvReport {
                 doc.date(txn).format(ISO_DATE),
                 doc.time(txn),
                 text(txn.displayName),
-                text(txn.category.label),
+                text(txn.categoryLabel),
                 text(doc.countedAs(txn).label),
                 amount(signed),
                 text(ReportDocument.paidWith(txn).orEmpty()),
@@ -73,7 +74,7 @@ object CsvReport {
     private fun summaryRows(lines: List<ReportLine>, type: String): List<Array<String>> =
         lines.map { line ->
             arrayOf(
-                text(line.category.label),
+                text(line.label),
                 text(type),
                 line.count.toString(),
                 amount(line.amountPaise),

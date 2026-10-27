@@ -42,14 +42,23 @@ data class Transaction(
     /** How an added entry was paid; null for SMS transactions. */
     val method: PaymentMethod? = null,
     val note: String? = null,
+    /** User-defined category label (for example "Pets"), null when using the built-in label. */
+    @ColumnInfo(defaultValue = "NULL") val customCategory: String? = null,
     /** Absolute path to a receipt photo the user attached; null when there is none. */
     @ColumnInfo(defaultValue = "NULL") val receiptPath: String? = null,
 )
 
 val Transaction.isManual: Boolean get() = source == EntrySource.MANUAL
 
+/** The user's own category name, or null when the transaction is in a built-in category. */
+val Transaction.customName: String?
+    get() = customCategory?.trim()?.takeIf { it.isNotEmpty() }
+
+val Transaction.categoryLabel: String
+    get() = customName ?: category.label
+
 val Transaction.displayName: String
-    get() = counterparty ?: vpa ?: bank?.let { "$it transaction" } ?: if (isManual) category.label else "Unknown"
+    get() = counterparty ?: vpa ?: bank?.let { "$it transaction" } ?: if (isManual) categoryLabel else "Unknown"
 
 @Entity(tableName = "category_rules")
 data class CategoryRule(
@@ -57,6 +66,31 @@ data class CategoryRule(
     @PrimaryKey val key: String,
     val category: Category,
     val updatedAt: Long,
+    /** Name of the user's own category the payee goes to; null for a built-in category. */
+    @ColumnInfo(defaultValue = "NULL") val customCategory: String? = null,
+)
+
+/**
+ * A category the user made, like "Pets". Transactions in it keep [CustomCategories.baseFor] as their built-in
+ * category and carry the name in [Transaction.customCategory].
+ */
+@Entity(tableName = "custom_categories", indices = [Index(value = ["name"], unique = true)])
+data class CustomCategory(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    /** DEBIT for an expense category, CREDIT for an income one. */
+    val type: TransactionType,
+    val createdAt: Long,
+)
+
+/** An SMS sender the user blocked: its messages are never read as transactions. */
+@Entity(tableName = "blocked_senders")
+data class BlockedSender(
+    /** Sender id without the operator prefix and route suffix, see [com.spendtracker.parser.SmsParser.senderKey]. */
+    @PrimaryKey val key: String,
+    /** The payee or name of the message the user blocked it from, to recognise it later. */
+    val example: String?,
+    val blockedAt: Long,
 )
 
 /** A monthly spending limit the user set for one category, shown on Home and used for over-budget nudges. */

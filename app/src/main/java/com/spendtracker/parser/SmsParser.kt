@@ -26,14 +26,31 @@ object SmsParser {
 
     private val PHONE_NUMBER_SENDER = Regex("""^\+?\d{10,}$""")
 
+    /**
+     * DLT sender ids end in the route: -S service, -T transactional, -G government, -P promotional.
+     * Banks never send transaction alerts on the promotional route.
+     */
+    private val PROMOTIONAL_SENDER = Regex("""^[A-Z]{2}-[A-Z0-9]{3,9}-P$""", IC)
+    private val SENDER_OPERATOR_PREFIX = Regex("""^[A-Z0-9]{2}-(?=[A-Z0-9]{3,})""")
+    private val SENDER_ROUTE_SUFFIX = Regex("""-[PSTG]$""")
+
     // Evaluated against the lowercased message.
     private val NOISE = listOf(
         Regex("""\b(otp|one[ -]?time password|verification code|security code)\b"""),
         Regex("""\b(has requested|is requesting|requested money|collect request|payment request)\b"""),
-        Regex("""\bwill be (debited|deducted|charged|auto[ -]?debited|processed)\b"""),
+        Regex("""\bwill be (debited|deducted|charged|auto[ -]?debited|processed|credited|refunded|reversed)\b"""),
         Regex("""\b(is due|are due|due on|due by|due date|amount due|amt due|overdue|payment due|minimum due)\b"""),
         Regex("""\b(pre[ -]?approved|apply now|eligible for|congratulations|limited period|click here to avail)\b"""),
         Regex("""\bmandate\b.{0,60}\b(created|registered|set up|successfully set|revoked|paused)\b"""),
+        Regex("""\bbonus\s+points?\b"""),
+        Regex("""\b(?:loyalty|reward(?:s)?)\s+account\b"""),
+        Regex("""\bredeem(?:able|ed|ing)?\b"""),
+        Regex("""\b(you have won|you've won|you won|lucky draw|jackpot|lottery|scratch card)\b"""),
+        Regex("""\b(use code|promo ?code|coupon code)\b"""),
+        Regex("""\b(?:up ?to|flat)\s+(?:rs\.?\s*|₹\s*)?\d+\s*%?\s*(?:off|cashback)\b"""),
+        Regex("""\bcashback\s+(?:of\s+)?up ?to\b"""),
+        Regex("""\b(?:wallet|account)\s+(?:will be|to be)\s+credited\b"""),
+        Regex("""\b(?:to be|shall be|would be)\s+credited\b"""),
     )
     private val FAILED = Regex("""\b(failed|declined|unsuccessful|could not be|not been processed|insufficient (funds|balance))\b""")
     private val REVERSAL = Regex("""\b(refund|refunded|reversal|reversed)\b""")
@@ -133,6 +150,7 @@ object SmsParser {
 
     fun parse(sender: String, body: String): ParsedSms? {
         if (PHONE_NUMBER_SENDER.matches(sender.replace(" ", ""))) return null
+        if (PROMOTIONAL_SENDER.matches(sender.trim())) return null
         val text = body.replace(Regex("""\s+"""), " ").trim()
         if (text.isEmpty()) return null
         val lower = text.lowercase()
@@ -154,18 +172,37 @@ object SmsParser {
         val refNo = upiPath?.groupValues?.get(1)
             ?: upiNarration?.groupValues?.get(3)
             ?: REF.find(text)?.groupValues?.get(1)
+        val accountTail = (ACCOUNT.find(text) ?: ACCOUNT_ENDING.find(text))?.groupValues?.get(1)
+        val senderBank = bankFromSender(sender)
+        // A real alert names the account, the UPI id or a reference, or comes from a bank. Offers that
+        // "credit" points or wallet cash to you usually have none of these.
+        if (accountTail == null && vpa == null && refNo == null && senderBank == null) return null
 
         return ParsedSms(
             type = type,
             amountPaise = amount,
             counterparty = findCounterparty(text, type, vpa, upiPath, upiNarration),
             vpa = vpa,
-            accountTail = (ACCOUNT.find(text) ?: ACCOUNT_ENDING.find(text))?.groupValues?.get(1),
-            bank = detectBank(sender, lower),
+            accountTail = accountTail,
+            bank = senderBank ?: bankFromBody(lower),
             refNo = refNo,
             balancePaise = BALANCE.find(text)?.groupValues?.get(1)?.let(::toPaise),
         )
     }
+
+    /**
+     * The part of a sender id that identifies who sent it: "VM-HDFCBK-S" and "JD-HDFCBK" are both "HDFCBK".
+     * Used to block a sender whatever operator delivered the message.
+     */
+    fun senderKey(sender: String): String {
+        val clean = sender.trim().uppercase().replace(" ", "")
+        if (clean.isEmpty()) return ""
+        return clean.replace(SENDER_OPERATOR_PREFIX, "").replace(SENDER_ROUTE_SUFFIX, "")
+    }
+
+    /** True when the sender id looks like a bank's, so its messages are likely real alerts. */
+    fun isBankSender(sender: String): Boolean =
+        bankFromSender(sender) != null || senderKey(sender).let { "BNK" in it || "BANK" in it }
 
     private fun detectType(lower: String): TransactionType? {
         val cleaned = lower.replace(CARD_WORDS, "card").replace(CREDIT_LIMIT, "limit")
@@ -248,10 +285,12 @@ object SmsParser {
         }
     }
 
-    private fun detectBank(sender: String, lower: String): String? {
-        val parts = sender.uppercase().split('-').filter { it.isNotBlank() }
-        val code = if (parts.size >= 2) parts[1] else parts.firstOrNull().orEmpty()
-        BANK_SENDER_CODES.firstOrNull { code.contains(it.first) }?.let { return it.second }
-        return BANK_BODY_NAMES.firstOrNull { Regex("""\b${Regex.escape(it.first)}\b""").containsMatchIn(lower) }?.second
+    private fun bankFromSender(sender: String): String? {
+        val code = senderKey(sender)
+        if (code.isEmpty() || PHONE_NUMBER_SENDER.matches(code)) return null
+        return BANK_SENDER_CODES.firstOrNull { code.contains(it.first) }?.second
     }
+
+    private fun bankFromBody(lower: String): String? =
+        BANK_BODY_NAMES.firstOrNull { Regex("""\b${Regex.escape(it.first)}\b""").containsMatchIn(lower) }?.second
 }

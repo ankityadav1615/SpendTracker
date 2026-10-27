@@ -1,8 +1,14 @@
 package com.spendtracker.model
 
 import com.spendtracker.data.Transaction
+import com.spendtracker.data.categoryLabel
 
-data class CategoryTotal(val category: Category, val amountPaise: Long, val count: Int)
+data class CategoryTotal(val category: Category, val amountPaise: Long, val count: Int, val label: String = category.label) {
+    /** True for one of the user's own categories, stored on top of [category]. */
+    val isCustom: Boolean get() = label != category.label
+
+    val customName: String? get() = label.takeIf { isCustom }
+}
 
 data class AccountBalance(val bank: String?, val accountTail: String?, val balancePaise: Long, val timestamp: Long)
 
@@ -29,7 +35,7 @@ data class Summary(
             var otherIncome = 0L
             var spent = 0L
             var excluded = 0L
-            val perCategory = linkedMapOf<Category, CategoryTotal>()
+            val perCategory = linkedMapOf<Pair<Category, String>, CategoryTotal>()
             for (txn in transactions) {
                 when {
                     txn.category.kind == CategoryKind.EXCLUDED -> excluded += txn.amountPaise
@@ -39,8 +45,9 @@ data class Summary(
                         val amount = CashLedger.countedPaise(txn, cashCovered)
                         if (amount <= 0) continue
                         spent += amount
-                        val current = perCategory[txn.category] ?: CategoryTotal(txn.category, 0, 0)
-                        perCategory[txn.category] = current.copy(
+                        val key = txn.category to txn.categoryLabel
+                        val current = perCategory[key] ?: CategoryTotal(txn.category, 0, 0, txn.categoryLabel)
+                        perCategory[key] = current.copy(
                             amountPaise = current.amountPaise + amount,
                             count = current.count + 1,
                         )

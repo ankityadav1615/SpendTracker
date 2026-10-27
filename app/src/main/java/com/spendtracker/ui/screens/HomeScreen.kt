@@ -31,15 +31,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.spendtracker.R
 import com.spendtracker.data.AppSettings
-import com.spendtracker.model.AccountBalance
 import com.spendtracker.model.BudgetStatus
 import com.spendtracker.model.Category
 import com.spendtracker.model.CategoryTotal
@@ -68,7 +62,7 @@ fun HomeScreen(
     onRequestPermission: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onSetBudget: () -> Unit,
-    onOpenCategory: (Category) -> Unit,
+    onOpenCategory: (Category, String) -> Unit,
     onDismissInsight: (String) -> Unit = {},
     onOpenSavingsGoal: () -> Unit = {},
 ) {
@@ -105,9 +99,6 @@ fun HomeScreen(
             item { SavingsGoalCard(state.savingsGoal, onClick = onOpenSavingsGoal) }
         }
         item { WhereItWentCard(state, onOpenCategory) }
-        if (state.balances.isNotEmpty()) {
-            item { BalancesCard(state.balances, state) }
-        }
     }
 }
 
@@ -156,7 +147,7 @@ private fun insightIcon(insight: Insight): Int = when (insight) {
 }
 
 @Composable
-private fun BudgetsCard(statuses: List<BudgetStatus>, onOpenCategory: (Category) -> Unit) {
+private fun BudgetsCard(statuses: List<BudgetStatus>, onOpenCategory: (Category, String) -> Unit) {
     SpendCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp)) {
         Text("Category budgets", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
@@ -165,7 +156,7 @@ private fun BudgetsCard(statuses: List<BudgetStatus>, onOpenCategory: (Category)
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .clickable { onOpenCategory(status.category) }
+                    .clickable { onOpenCategory(status.category, status.category.label) }
                     .padding(vertical = 10.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -240,54 +231,25 @@ private fun MoneyCard(state: MoneyState, onSetBudget: (() -> Unit)?) {
     val left = state.moneyLeft
     val summary = state.summary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val strong = SpanStyle(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
     val window = state.period.incomeWindow
 
-    val (lead, amount, unit) = when {
-        left.basis == MoneyLeft.Basis.SPENT_ONLY -> Triple("You spent", summary.spentPaise, null)
-        left.overspent -> Triple("You're", -left.leftPaise, "over")
-        else -> Triple("You have", left.leftPaise, "left")
+    val (lead, amount) = when {
+        left.basis == MoneyLeft.Basis.SPENT_ONLY -> "Spent so far" to summary.spentPaise
+        left.overspent && left.basis == MoneyLeft.Basis.BUDGET -> "Over budget" to -left.leftPaise
+        left.overspent -> "Over income" to -left.leftPaise
+        left.basis == MoneyLeft.Basis.BUDGET -> "Budget left" to left.leftPaise
+        else -> "Money left" to left.leftPaise
     }
-    val explanation = buildAnnotatedString {
-        when (left.basis) {
-            MoneyLeft.Basis.BUDGET -> if (left.overspent) {
-                append("You spent ")
-                withStyle(strong) { append(Money.format(left.spentPaise)) }
-                append(", more than your ")
-                withStyle(strong) { append(Money.format(left.basePaise)) }
-                append(" budget.")
-            } else {
-                append("of your ")
-                withStyle(strong) { append(Money.format(left.basePaise)) }
-                append(" budget, after spending ")
-                withStyle(strong) { append(Money.format(left.spentPaise)) }
-                append(".")
-            }
-            MoneyLeft.Basis.INCOME -> if (left.overspent) {
-                withStyle(strong) { append(Money.format(left.spentPaise)) }
-                append(" went out, more than the ")
-                withStyle(strong) { append(Money.format(left.basePaise)) }
-                append(" that came in $window.")
-            } else {
-                append("from ")
-                withStyle(strong) { append(Money.format(left.basePaise)) }
-                append(" that came in $window.")
-            }
-            MoneyLeft.Basis.SPENT_ONLY -> append("No money came in $window, so there's nothing to count it against yet.")
-        }
+    val explanation = when (left.basis) {
+        MoneyLeft.Basis.BUDGET -> "Budget ${Money.format(left.basePaise)} · Spent ${Money.format(left.spentPaise)}"
+        MoneyLeft.Basis.INCOME -> "Income ${Money.format(left.basePaise)} · Spent ${Money.format(left.spentPaise)} in $window"
+        MoneyLeft.Basis.SPENT_ONLY -> "No income found in $window yet."
     }
 
     SpendCard {
         Text(lead, style = MaterialTheme.typography.bodyLarge, color = muted)
         Text(
-            buildAnnotatedString {
-                append(Money.format(amount))
-                if (unit != null) {
-                    withStyle(SpanStyle(fontSize = 22.sp, fontWeight = FontWeight.Medium, color = muted, letterSpacing = 0.sp)) {
-                        append(" $unit")
-                    }
-                }
-            },
+            Money.format(amount),
             style = MaterialTheme.typography.displayMedium,
             color = if (left.overspent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(top = 4.dp),
@@ -298,7 +260,7 @@ private fun MoneyCard(state: MoneyState, onSetBudget: (() -> Unit)?) {
             MoneyStrip(summary.byCategory, left)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                LegendItem(Money.format(summary.spentPaise) + " went out", striped = false)
+                LegendItem(Money.format(summary.spentPaise) + " spent", striped = false)
                 if (left.basis != MoneyLeft.Basis.SPENT_ONLY && !left.overspent) {
                     LegendItem(Money.format(left.leftPaise) + " left", striped = true)
                 }
@@ -316,7 +278,7 @@ private fun MoneyCard(state: MoneyState, onSetBudget: (() -> Unit)?) {
 @Composable
 private fun MoneyStrip(categories: List<CategoryTotal>, left: MoneyLeft) {
     val colors = SpendTheme.colors
-    val segments = categories.map { left.shareOf(it.amountPaise) to colors.category(it.category) }
+    val segments = categories.map { left.shareOf(it.amountPaise) to colors.category(it.category, it.customName) }
         .filter { it.first > 0f }
     val leftShare = left.leftShare
     val spentPercent = ((1f - leftShare) * 100).roundToInt()
@@ -376,7 +338,7 @@ private fun LegendItem(text: String, striped: Boolean) {
 }
 
 @Composable
-private fun WhereItWentCard(state: MoneyState, onOpenCategory: (Category) -> Unit) {
+private fun WhereItWentCard(state: MoneyState, onOpenCategory: (Category, String) -> Unit) {
     val summary = state.summary
     val payments = summary.byCategory.sumOf { it.count }
     SpendCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp)) {
@@ -402,12 +364,12 @@ private fun WhereItWentCard(state: MoneyState, onOpenCategory: (Category) -> Uni
         summary.byCategory.forEachIndexed { index, total ->
             if (index > 0) RowDivider()
             ListRow(
-                leading = { CategoryTile(total.category) },
-                title = total.category.label,
+                leading = { CategoryTile(total.category, customName = total.customName) },
+                title = total.label,
                 meta = if (total.count == 1) "1 payment" else "${total.count} payments",
                 amount = Money.format(total.amountPaise),
                 amountNote = percentOf(total.amountPaise, summary.spentPaise),
-                onClick = { onOpenCategory(total.category) },
+                onClick = { onOpenCategory(total.category, total.label) },
             )
         }
         if (summary.excludedPaise > 0) {
@@ -427,38 +389,6 @@ private fun percentOf(part: Long, whole: Long): String? {
     val percent = (part * 100.0 / whole).roundToInt()
     return if (percent == 0) "<1%" else "$percent%"
 }
-
-@Composable
-private fun BalancesCard(balances: List<AccountBalance>, state: MoneyState) {
-    SpendCard(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp)) {
-        Text("Bank balances", style = MaterialTheme.typography.titleLarge)
-        Text(
-            "Latest balance each bank sent you",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
-        balances.forEachIndexed { index, balance ->
-            if (index > 0) RowDivider()
-            ListRow(
-                leading = {
-                    Tile(SpendTheme.colors.tint) {
-                        Text(bankInitials(balance.bank), style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
-                    }
-                },
-                title = balance.bank ?: balance.accountTail?.let { "Account ••$it" } ?: "Bank account",
-                meta = listOfNotNull(
-                    balance.accountTail?.takeIf { balance.bank != null }?.let { "••$it" },
-                    formatWhen(balance.timestamp, state.today),
-                ).joinToString(" · "),
-                amount = Money.format(balance.balancePaise, withPaise = true),
-            )
-        }
-    }
-}
-
-private fun bankInitials(bank: String?): String =
-    bank?.filter { it.isLetter() }?.take(2)?.uppercase()?.ifEmpty { null } ?: "₹"
 
 @Composable
 private fun SetUpSmsCard(onSetUpSms: () -> Unit) {

@@ -32,7 +32,8 @@ HOW IT WORKS
 • OTPs, offers, payment requests, reminders, failed payments and messages from personal numbers are skipped and never stored.
 
 SEE WHERE IT WENT
-• Home shows how much is left of your monthly budget or your income, where the money went by category, and the latest balance of each bank account.
+• Home shows how much is left of your monthly budget or your income, and where the money went by category.
+• Make your own categories, like Pets or Gym, and rename or delete them any time.
 • Fits how you earn: salary (payday to payday), business, freelance work, an allowance, or a mix.
 • Any date range: this or last pay cycle, this or last month, the last 3 months, or any dates on a calendar.
 • Activity lists every transaction by day, with search and filters.

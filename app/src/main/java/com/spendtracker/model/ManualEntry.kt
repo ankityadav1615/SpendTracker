@@ -24,6 +24,8 @@ data class ManualEntry(
     val timestamp: Long,
     val method: PaymentMethod?,
     val note: String?,
+    /** Name of one of the user's own categories; the entry is then stored under [CustomCategories.baseFor]. */
+    val customCategory: String? = null,
     /** Absolute path to a receipt photo the user attached; null for none. */
     val receiptPath: String? = null,
 )
@@ -68,6 +70,8 @@ object ManualEntries {
     fun toTransaction(entry: ManualEntry, existing: Transaction? = null): Transaction {
         val name = entry.name?.trim()?.takeIf { it.isNotEmpty() }
         val note = entry.note?.trim()?.takeIf { it.isNotEmpty() }
+        val customCategory = entry.customCategory?.let(CustomCategories::normalize)?.takeIf { it.isNotEmpty() }
+            ?.take(CustomCategories.MAX_NAME_LENGTH)
         return Transaction(
             id = existing?.id ?: 0,
             type = entry.type,
@@ -80,13 +84,14 @@ object ManualEntries {
             refNo = null,
             balancePaise = null,
             timestamp = entry.timestamp,
-            category = entry.category,
+            category = if (customCategory != null) CustomCategories.baseFor(entry.type) else entry.category,
             sender = "",
             body = "",
             dedupeKey = existing?.dedupeKey ?: "manual:${UUID.randomUUID()}",
             source = EntrySource.MANUAL,
             method = entry.method,
             note = note,
+            customCategory = customCategory,
             receiptPath = entry.receiptPath,
         )
     }

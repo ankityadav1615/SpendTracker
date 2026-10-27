@@ -83,7 +83,7 @@ fun ReportsScreen(
     onOpenPeriods: () -> Unit,
     onSelectPeriod: (PeriodChoice) -> Unit,
     onDownload: () -> Unit,
-    onOpenCategory: (Category) -> Unit,
+    onOpenCategory: (Category, String) -> Unit,
     onAdd: () -> Unit,
 ) {
     val report = state?.reports?.get(side)
@@ -155,8 +155,8 @@ fun ReportsScreen(
                 }
             }
         }
-        items(report.lines, key = { "${side.name}-${it.category.name}" }) { line ->
-            CategoryCard(line, side, onClick = { onOpenCategory(line.category) }, modifier = Modifier.padding(bottom = 10.dp))
+        items(report.lines, key = { "${side.name}-${it.category.name}-${it.label}" }) { line ->
+            CategoryCard(line, side, onClick = { onOpenCategory(line.category, line.label) }, modifier = Modifier.padding(bottom = 10.dp))
         }
     }
 }
@@ -210,8 +210,8 @@ private fun percentText(share: Float): String {
 private fun RingChart(report: Report, modifier: Modifier = Modifier) {
     val colors = SpendTheme.colors
     val lines = report.lines
-    var selected by remember(report.side) { mutableStateOf<Category?>(null) }
-    val pick = lines.firstOrNull { it.category == selected }
+    var selected by remember(report.side) { mutableStateOf<Pair<Category, String>?>(null) }
+    val pick = lines.firstOrNull { (it.category to it.label) == selected }
     val reveal = remember(report.side) { Animatable(0f) }
     LaunchedEffect(report.side) { reveal.animateTo(1f, tween(650, easing = FastOutSlowInEasing)) }
     val track = colors.tint
@@ -225,7 +225,7 @@ private fun RingChart(report: Report, modifier: Modifier = Modifier) {
                     contentDescription = if (lines.isEmpty()) {
                         "Ring chart, empty"
                     } else {
-                        "Ring chart: " + lines.joinToString(", ") { "${it.category.label} ${percentText(it.share)}" }
+                        "Ring chart: " + lines.joinToString(", ") { "${it.label} ${percentText(it.share)}" }
                     }
                 }
                 .pointerInput(lines) {
@@ -242,7 +242,8 @@ private fun RingChart(report: Report, modifier: Modifier = Modifier) {
                         for (line in lines) {
                             val sweep = line.share * 360.0
                             if (degrees < start + sweep) {
-                                selected = if (selected == line.category) null else line.category
+                                val key = line.category to line.label
+                                selected = if (selected == key) null else key
                                 return@detectTapGestures
                             }
                             start += sweep
@@ -264,8 +265,8 @@ private fun RingChart(report: Report, modifier: Modifier = Modifier) {
                 val full = line.share * 360f
                 val sweep = (min(full, max(0f, total - (start + 90f))) - gap).coerceAtLeast(0f)
                 if (sweep > 0f) {
-                    val on = pick?.category == line.category
-                    val color = colors.category(line.category).copy(alpha = if (pick == null || on) 1f else 0.4f)
+                    val on = pick == line
+                    val color = colors.category(line.category, line.customName).copy(alpha = if (pick == null || on) 1f else 0.4f)
                     drawArc(
                         color,
                         startAngle = start + gap / 2f,
@@ -281,7 +282,7 @@ private fun RingChart(report: Report, modifier: Modifier = Modifier) {
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(150.dp)) {
             Text(
-                pick?.category?.label ?: if (expenses) "Total spent" else "Total received",
+                pick?.label ?: if (expenses) "Total spent" else "Total received",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -414,7 +415,7 @@ private fun BarChart(report: Report, today: LocalDate) {
 @Composable
 private fun CategoryCard(line: ReportLine, side: ReportSide, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = SpendTheme.colors
-    val color = colors.category(line.category)
+    val color = colors.category(line.category, line.customName)
     SpendCard(modifier, contentPadding = PaddingValues(0.dp)) {
         Column(
             Modifier
@@ -422,10 +423,10 @@ private fun CategoryCard(line: ReportLine, side: ReportSide, onClick: () -> Unit
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                CategoryTile(line.category)
+                CategoryTile(line.category, customName = line.customName)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(line.category.label, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(line.label, style = MaterialTheme.typography.titleMedium, maxLines = 1)
                     Text(
                         "${percentText(line.share)} of total · ${paymentsText(line.count)}",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),

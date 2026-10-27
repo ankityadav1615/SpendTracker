@@ -248,7 +248,7 @@ object PdfReport {
             for (line in lines) {
                 if (ensure(ROW)) y += 4f
                 canvas?.drawCircle(left + 4f, y + 7.5f, 3.5f, fill(line.category.color.toInt()))
-                text(line.category.label, left + 14f, y + 11f, body, countRight - 60f - left)
+                text(line.label, left + 14f, y + 11f, body, countRight - 60f - left)
                 text(line.count.toString(), countRight, y + 11f, body.alignRight())
                 text(Money.format(line.amountPaise), amountRight, y + 11f, body.alignRight())
                 text(percent(line.share), right, y + 11f, body.alignRight())
