@@ -1,6 +1,7 @@
 package com.spendtracker.export
 
 import com.spendtracker.data.Transaction
+import com.spendtracker.data.categoryLabel
 import com.spendtracker.data.isManual
 import com.spendtracker.model.CashLedger
 import com.spendtracker.model.Category
@@ -105,10 +106,26 @@ class ReportDocument private constructor(
             }
             val groups = buildList {
                 for (line in expenses) {
-                    add(group(line, Counted.EXPENSE, included.filter { it.category == line.category && counted[it.id] == Counted.EXPENSE }))
+                    add(
+                        group(
+                            line,
+                            Counted.EXPENSE,
+                            included.filter {
+                                it.category == line.category && it.categoryLabel == line.label && counted[it.id] == Counted.EXPENSE
+                            },
+                        ),
+                    )
                 }
                 for (line in income) {
-                    add(group(line, Counted.INCOME, included.filter { it.category == line.category && counted[it.id] == Counted.INCOME }))
+                    add(
+                        group(
+                            line,
+                            Counted.INCOME,
+                            included.filter {
+                                it.category == line.category && it.categoryLabel == line.label && counted[it.id] == Counted.INCOME
+                            },
+                        ),
+                    )
                 }
                 val notCounted = included.filter { counted[it.id] == Counted.NOT_COUNTED }
                 if (notCounted.isNotEmpty()) {
@@ -133,7 +150,7 @@ class ReportDocument private constructor(
         }
 
         private fun group(line: ReportLine, counted: Counted, transactions: List<Transaction>) =
-            PaymentGroup(line.category.label, line.category, counted, line.amountPaise, transactions)
+            PaymentGroup(line.label, line.category, counted, line.amountPaise, transactions)
 
         /** "1 Oct – 20 Oct 2026", "28 Dec 2025 – 3 Jan 2026" or "5 Oct 2026". */
         fun fullRange(first: LocalDate, last: LocalDate): String = when {

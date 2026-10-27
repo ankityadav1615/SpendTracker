@@ -6,20 +6,23 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendtracker.SpendTrackerApplication
 import com.spendtracker.data.AppSettings
+import com.spendtracker.data.BlockedSender
 import com.spendtracker.data.CategoryBudget
 import com.spendtracker.data.Transaction
 import com.spendtracker.export.CsvReport
 import com.spendtracker.export.ExportFormat
 import com.spendtracker.export.PdfReport
 import com.spendtracker.export.ReportDocument
-import com.spendtracker.model.AccountBalance
 import com.spendtracker.model.Budgets
 import com.spendtracker.model.BudgetStatus
 import com.spendtracker.model.CashLedger
 import com.spendtracker.model.Category
+import com.spendtracker.model.CategoryChoice
 import com.spendtracker.model.CategoryRuleInfo
 import com.spendtracker.model.CategoryRules
 import com.spendtracker.model.Comparison
+import com.spendtracker.model.CustomCategories
+import com.spendtracker.model.CustomCategoryInfo
 import com.spendtracker.model.IncomeType
 import com.spendtracker.model.Insight
 import com.spendtracker.model.Insights
@@ -64,7 +67,6 @@ data class MoneyState(
     val moneyLeft: MoneyLeft,
     /** Transactions of the period, newest first. */
     val transactions: List<Transaction>,
-    val balances: List<AccountBalance>,
     val hasAnyTransactions: Boolean,
     val today: LocalDate,
     /** Cash already counted through added cash spends, per withdrawal id (see [CashLedger]). */
@@ -117,6 +119,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val categoryRules: StateFlow<List<CategoryRuleInfo>> = combine(repository.categoryRules, allTransactions) { rules, txns ->
         CategoryRules.infos(rules, txns.orEmpty())
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The user's own categories, most used first. */
+    val customCategories: StateFlow<List<CustomCategoryInfo>> =
+        combine(repository.customCategories, allTransactions) { categories, txns ->
+            CustomCategories.infos(categories, txns.orEmpty())
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Senders whose messages the user chose to ignore. */
+    val blockedSenders: StateFlow<List<BlockedSender>> = repository.blockedSenders
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** What the user picked; null follows the default for their settings. */
     private val choice = MutableStateFlow<PeriodChoice?>(null)
@@ -270,13 +282,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateCategory(transaction: Transaction, category: Category, applyToSimilar: Boolean) {
-        viewModelScope.launch { repository.updateCategory(transaction, category, applyToSimilar) }
+    fun updateCategory(transaction: Transaction, choice: CategoryChoice, applyToSimilar: Boolean) {
+        viewModelScope.launch { repository.updateCategory(transaction, choice, applyToSimilar) }
     }
 
-    fun hide(transaction: Transaction) {
-        viewModelScope.launch { repository.setIgnored(transaction, true) }
-        say("Hidden. It won't count anywhere.")
+    /** Hides a message that isn't money that moved, and with [blockSender] everything else from its sender. */
+    fun markNotReal(transaction: Transaction, blockSender: Boolean) {
+        viewModelScope.launch {
+            val hidden = repository.markNotReal(transaction, blockSender)
+            say(
+                when {
+                    !blockSender -> "Hidden. It won't count anywhere."
+                    hidden <= 1 -> "Hidden, and future messages from this sender are ignored"
+                    else -> "Hid $hidden messages from this sender, and future ones are ignored"
+                },
+            )
+        }
+    }
+
+    /** Reads [key]'s messages again, and scans the inbox for ones skipped while it was blocked. */
+    fun unblockSender(key: String) {
+        viewModelScope.launch {
+            repository.unblockSender(key)
+            say("$key unblocked")
+            importSms(userRequested = true)
+        }
+    }
+
+    /** Adds one of the user's own categories. The sheet has already checked the name. */
+    fun addCustomCategory(name: String, type: TransactionType) {
+        viewModelScope.launch {
+            if (!repository.addCustomCategory(CustomCategories.normalize(name), type)) say("\"$name\" already exists")
+        }
+    }
+
+    fun renameCustomCategory(id: Long, name: String) {
+        viewModelScope.launch { repository.renameCustomCategory(id, CustomCategories.normalize(name)) }
+    }
+
+    fun deleteCustomCategory(id: Long) {
+        viewModelScope.launch { repository.deleteCustomCategory(id) }
+        say("Category deleted")
     }
 
     /** Saves an entry from the add sheet, or the changes to [existing]. */
@@ -367,7 +413,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             summary = summary,
             moneyLeft = MoneyLeft.of(summary, budget),
             transactions = inPeriod,
-            balances = Summary.latestBalances(all),
             hasAnyTransactions = all.isNotEmpty(),
             today = today,
             cashCovered = covered,

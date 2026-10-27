@@ -11,7 +11,10 @@ data class CategoryRuleInfo(
     val category: Category,
     val displayName: String,
     val updatedAt: Long,
-)
+    val customCategory: String? = null,
+) {
+    val label: String get() = customCategory ?: category.label
+}
 
 object CategoryRules {
 
@@ -30,6 +33,7 @@ object CategoryRules {
                     category = rule.category,
                     displayName = sample?.counterparty?.takeIf { it.isNotBlank() } ?: sample?.vpa ?: "Unknown payee",
                     updatedAt = rule.updatedAt,
+                    customCategory = rule.customCategory?.takeIf { it.isNotBlank() },
                 )
             }
             .sortedByDescending { it.updatedAt }

@@ -266,6 +266,7 @@ class SmsParserTest {
             "Congratulations! You are eligible for a pre-approved personal loan of Rs 5,00,000. Apply now",
             "Payment of Rs 15,000.00 received towards your HDFC Bank Credit Card ending 5678 on 10-10-24. Thank you.",
             "Your HDFC Bank account statement for October is ready",
+            "Festive special! Vishal Mega Mart 300 bonus points = Rs 150 credited to your loyalty account valid till tomorrow. Redeemable on minimum shopping Rs 1500.",
         )
         notTransactions.forEach { body -> assertNull(body, SmsParser.parse("VM-HDFCBK", body)) }
     }
@@ -285,5 +286,53 @@ class SmsParserTest {
         assertEquals("ICICI Bank", sms.bank)
         assertEquals("3485", sms.accountTail)
         assertEquals(Category.FOOD, Categorizer.categorize(sms, body))
+    }
+
+    @Test
+    fun ignoresPromotionalRouteSenders() {
+        // DLT marks promotional messages with a -P suffix; banks send alerts on -S/-T routes.
+        assertNull(SmsParser.parse("JD-VMEGAM-P", "Rs 150 credited to your account. Shop now!"))
+        assertNull(SmsParser.parse("VM-HDFCBK-P", "Rs 500 debited from A/c XX1234 to AMAZON. UPI Ref 123456789012"))
+        assertNotNull(SmsParser.parse("VM-HDFCBK-S", "Rs 500 debited from A/c XX1234 to AMAZON. UPI Ref 123456789012"))
+    }
+
+    @Test
+    fun needsSomeSignOfARealAccount() {
+        // A store's promo has an amount and "credited" but no account, UPI id, reference or bank.
+        assertNull(SmsParser.parse("AD-VMEGAM", "Rs 150 has been credited for you. Visit the nearest store."))
+        assertNull(SmsParser.parse("AX-MYNTRA", "Rs 200 credited to your Myntra wallet."))
+        // The same words from a bank count.
+        assertNotNull(SmsParser.parse("AD-SBIUPI", "Rs 150 has been credited to your account."))
+    }
+
+    @Test
+    fun ignoresMoreOffersAndRewards() {
+        val offers = listOf(
+            "Congrats! You've won Rs 500 in the lucky draw. Claim from A/c XX1234 now.",
+            "Use code FEST100 to get Rs 100 credited to A/c XX1234 on your next order.",
+            "Flat 20% off! Rs 300 cashback will be credited to your A/c XX1234 on shopping above Rs 1500.",
+            "Get cashback up to Rs 250 credited to A/c XX1234 when you pay with UPI.",
+            "Rs 50 will be credited to your wallet after the order is delivered. A/c XX1234",
+        )
+        offers.forEach { body -> assertNull(body, SmsParser.parse("VM-HDFCBK", body)) }
+    }
+
+    @Test
+    fun senderKeyDropsOperatorAndRoute() {
+        assertEquals("HDFCBK", SmsParser.senderKey("VM-HDFCBK-S"))
+        assertEquals("HDFCBK", SmsParser.senderKey("ad-hdfcbk"))
+        assertEquals("VMEGAM", SmsParser.senderKey("JD-VMEGAM-P"))
+        assertEquals("VMEGAM", SmsParser.senderKey(" VMEGAM "))
+        assertEquals("+919876543210", SmsParser.senderKey("+91 98765 43210"))
+        assertEquals("", SmsParser.senderKey("  "))
+    }
+
+    @Test
+    fun recognisesBankSenders() {
+        assertEquals(true, SmsParser.isBankSender("VM-HDFCBK-S"))
+        assertEquals(true, SmsParser.isBankSender("AD-SBIUPI"))
+        assertEquals(true, SmsParser.isBankSender("VM-GRNBNK"))
+        assertEquals(false, SmsParser.isBankSender("JD-VMEGAM-P"))
+        assertEquals(false, SmsParser.isBankSender("+919876543210"))
     }
 }

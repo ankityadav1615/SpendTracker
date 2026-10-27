@@ -67,7 +67,9 @@ import com.spendtracker.sms.SmsPermission
 import com.spendtracker.ui.screens.ActivityScreen
 import com.spendtracker.ui.screens.AppDocument
 import com.spendtracker.ui.screens.CategoryBudgetsScreen
+import com.spendtracker.ui.screens.BlockedSendersScreen
 import com.spendtracker.ui.screens.CategoryRulesScreen
+import com.spendtracker.ui.screens.CustomCategoriesScreen
 import com.spendtracker.ui.screens.DisclosureScreen
 import com.spendtracker.ui.screens.DocumentScreen
 import com.spendtracker.ui.screens.EntrySheet
@@ -249,6 +251,14 @@ private fun MainScreens(
     var categoryBudgetsOpen by rememberSaveable { mutableStateOf(false) }
     var categoryRulesOpen by rememberSaveable { mutableStateOf(false) }
     val categoryRules by viewModel.categoryRules.collectAsStateWithLifecycle()
+    var customCategoriesOpen by rememberSaveable { mutableStateOf(false) }
+    val customCategories by viewModel.customCategories.collectAsStateWithLifecycle()
+    var blockedSendersOpen by rememberSaveable { mutableStateOf(false) }
+    val blockedSenders by viewModel.blockedSenders.collectAsStateWithLifecycle()
+    val openCategory = { category: Category, label: String ->
+        filterKey = ActivityFilter.forCategory(category, label).key
+        onTabChange(Tab.ACTIVITY)
+    }
     var reportSide by rememberSaveable { mutableStateOf(ReportSide.EXPENSES) }
     var reportChart by rememberSaveable { mutableStateOf(ReportChart.RING) }
     // The add sheet: closed, adding (editId null) or changing an added entry.
@@ -309,6 +319,26 @@ private fun MainScreens(
         )
         return
     }
+    if (customCategoriesOpen) {
+        BackHandler { customCategoriesOpen = false }
+        CustomCategoriesScreen(
+            categories = customCategories,
+            onBack = { customCategoriesOpen = false },
+            onAdd = viewModel::addCustomCategory,
+            onRename = viewModel::renameCustomCategory,
+            onDelete = viewModel::deleteCustomCategory,
+        )
+        return
+    }
+    if (blockedSendersOpen) {
+        BackHandler { blockedSendersOpen = false }
+        BlockedSendersScreen(
+            senders = blockedSenders,
+            onBack = { blockedSendersOpen = false },
+            onUnblock = viewModel::unblockSender,
+        )
+        return
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -331,10 +361,7 @@ private fun MainScreens(
                     budgetRequested = true
                     onTabChange(Tab.SETTINGS)
                 },
-                onOpenCategory = { category ->
-                    filterKey = ActivityFilter.Of(category).key
-                    onTabChange(Tab.ACTIVITY)
-                },
+                onOpenCategory = openCategory,
                 onDismissInsight = viewModel::dismissInsight,
                 onOpenSavingsGoal = {
                     savingsGoalRequested = true
@@ -368,10 +395,7 @@ private fun MainScreens(
                 onOpenPeriods = { periodPanel = PeriodPanel.SHEET },
                 onSelectPeriod = viewModel::selectPeriod,
                 onDownload = { exportOpen = true },
-                onOpenCategory = { category ->
-                    filterKey = ActivityFilter.Of(category).key
-                    onTabChange(Tab.ACTIVITY)
-                },
+                onOpenCategory = openCategory,
                 onAdd = { openEntry(if (reportSide == ReportSide.INCOME) TransactionType.CREDIT else TransactionType.DEBIT) },
             )
 
@@ -382,11 +406,15 @@ private fun MainScreens(
                 contentPadding = padding,
                 categoryBudgetCount = money?.budgetStatuses?.size ?: 0,
                 categoryRuleCount = categoryRules.size,
+                customCategoryCount = customCategories.size,
+                blockedSenderCount = blockedSenders.size,
                 onChooseIncomeType = viewModel::chooseIncomeType,
                 onSetPeriodMode = viewModel::setPeriodMode,
                 onSetBudget = viewModel::setBudget,
                 onOpenCategoryBudgets = { categoryBudgetsOpen = true },
                 onOpenCategoryRules = { categoryRulesOpen = true },
+                onOpenCustomCategories = { customCategoriesOpen = true },
+                onOpenBlockedSenders = { blockedSendersOpen = true },
                 onSetUpSms = onSetUpSms,
                 onRequestPermission = onRequestPermission,
                 onStopSms = viewModel::stopSms,
@@ -426,11 +454,11 @@ private fun MainScreens(
             transaction = selected,
             today = money?.today ?: LocalDate.now(),
             onDismiss = { selectedId = null },
-            onCategorySelected = { category, applyToSimilar ->
-                viewModel.updateCategory(selected, category, applyToSimilar)
+            onCategorySelected = { choice, applyToSimilar ->
+                viewModel.updateCategory(selected, choice, applyToSimilar)
             },
-            onHide = {
-                viewModel.hide(selected)
+            onNotReal = { block ->
+                viewModel.markNotReal(selected, block)
                 selectedId = null
             },
             onEdit = {
@@ -443,6 +471,8 @@ private fun MainScreens(
                 selectedId = null
             },
             coveredPaise = money?.cashCovered?.get(selected.id) ?: 0,
+            customCategories = customCategories,
+            onCreateCategory = viewModel::addCustomCategory,
         )
     }
 
@@ -452,6 +482,8 @@ private fun MainScreens(
             existing = editing,
             today = money?.today ?: LocalDate.now(),
             initialType = entryType,
+            customCategories = customCategories,
+            onCreateCategory = viewModel::addCustomCategory,
             onSave = { entry ->
                 viewModel.saveEntry(entry, editing)
                 entryOpen = false

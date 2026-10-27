@@ -72,7 +72,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spendtracker.R
 import com.spendtracker.data.Transaction
+import com.spendtracker.data.customName
 import com.spendtracker.model.Category
+import com.spendtracker.model.CustomCategories
+import com.spendtracker.model.CustomCategoryInfo
 import com.spendtracker.model.DateRanges
 import com.spendtracker.model.ManualEntries
 import com.spendtracker.model.ManualEntry
@@ -110,6 +113,8 @@ fun EntrySheet(
     onSave: (ManualEntry) -> Unit,
     onDismiss: () -> Unit,
     initialType: TransactionType = TransactionType.DEBIT,
+    customCategories: List<CustomCategoryInfo> = emptyList(),
+    onCreateCategory: (String, TransactionType) -> Unit = { _, _ -> },
 ) {
     val colors = SpendTheme.colors
     val key = existing?.id ?: 0L
@@ -118,6 +123,7 @@ fun EntrySheet(
     var amount by rememberSaveable(key) { mutableStateOf(existing?.let { ManualEntries.amountText(it.amountPaise) } ?: "") }
     var name by rememberSaveable(key) { mutableStateOf(existing?.counterparty ?: "") }
     var category by rememberSaveable(key) { mutableStateOf(existing?.category) }
+    var customCategory by rememberSaveable(key) { mutableStateOf(existing?.customName ?: "") }
     var method by rememberSaveable(key) {
         mutableStateOf(if (existing != null) existing.method else PaymentMethod.CASH.takeIf { initialType == TransactionType.DEBIT })
     }
@@ -161,6 +167,7 @@ fun EntrySheet(
                 type = type,
                 amountPaise = value,
                 category = picked,
+                customCategory = customCategory.takeIf { it.isNotEmpty() },
                 name = name,
                 timestamp = timestamp,
                 method = if (expense) method else null,
@@ -189,6 +196,10 @@ fun EntrySheet(
                     val next = if (index == 0) TransactionType.DEBIT else TransactionType.CREDIT
                     if (next != type) {
                         type = next
+                        if (customCategory.isNotEmpty()) {
+                            customCategory = ""
+                            category = null
+                        }
                         if (category !in ManualEntries.categoriesFor(next)) category = null
                         method = if (next == TransactionType.DEBIT) method ?: PaymentMethod.CASH else null
                         showAll = false
@@ -265,8 +276,11 @@ fun EntrySheet(
                 visible.forEach { option ->
                     ChoiceChip(
                         label = option.label,
-                        selected = category == option,
-                        onClick = { category = option },
+                        selected = category == option && customCategory.isEmpty(),
+                        onClick = {
+                            category = option
+                            customCategory = ""
+                        },
                         icon = categoryIcon(option),
                         iconTint = colors.category(option),
                     )
@@ -275,6 +289,20 @@ fun EntrySheet(
                     ChoiceChip(label = "More…", selected = false, onClick = { showAll = true })
                 }
             }
+            CustomCategoryChips(
+                type = type,
+                all = customCategories,
+                selected = customCategory.takeIf { it.isNotEmpty() },
+                onSelect = { picked ->
+                    customCategory = picked
+                    category = CustomCategories.baseFor(type)
+                },
+                onCreate = { created ->
+                    onCreateCategory(created, type)
+                    customCategory = created
+                    category = CustomCategories.baseFor(type)
+                },
+            )
             if (tried && category == null) {
                 Text(
                     "Pick a category",

@@ -1,6 +1,8 @@
 package com.spendtracker.model
 
 import com.spendtracker.data.Transaction
+import com.spendtracker.data.categoryLabel
+import com.spendtracker.data.customName
 import com.spendtracker.data.displayName
 import java.time.Instant
 import java.time.LocalDate
@@ -19,6 +21,7 @@ sealed interface ActivityFilter {
             MoneyOut -> "out"
             MoneyIn -> "in"
             is Of -> "category:" + category.name
+            is Custom -> "custom:" + name
         }
 
     val label: String
@@ -27,6 +30,7 @@ sealed interface ActivityFilter {
             MoneyOut -> "Money out"
             MoneyIn -> "Money in"
             is Of -> category.label
+            is Custom -> name
         }
 
     companion object {
@@ -35,8 +39,14 @@ sealed interface ActivityFilter {
             key == MoneyIn.key -> MoneyIn
             key != null && key.startsWith("category:") ->
                 Category.entries.firstOrNull { it.name == key.removePrefix("category:") }?.let(::Of) ?: All
+            key != null && key.startsWith("custom:") ->
+                key.removePrefix("custom:").takeIf { it.isNotBlank() }?.let(::Custom) ?: All
             else -> All
         }
+
+        /** The chip for a category row: [label] is the user's own category name when it differs from [category]'s. */
+        fun forCategory(category: Category, label: String): ActivityFilter =
+            if (label != category.label && label.isNotBlank()) Custom(label) else Of(category)
     }
 
     data object All : ActivityFilter {
@@ -51,8 +61,14 @@ sealed interface ActivityFilter {
         override fun matches(transaction: Transaction) = transaction.type == TransactionType.CREDIT
     }
 
+    /** A built-in category; payments moved to one of the user's own categories are left out. */
     data class Of(val category: Category) : ActivityFilter {
-        override fun matches(transaction: Transaction) = transaction.category == category
+        override fun matches(transaction: Transaction) = transaction.category == category && transaction.customName == null
+    }
+
+    /** One of the user's own categories. */
+    data class Custom(val name: String) : ActivityFilter {
+        override fun matches(transaction: Transaction) = transaction.customName == name
     }
 }
 
@@ -73,10 +89,10 @@ object Activity {
     /** The filter chips for a period: the fixed ones, then each category present, largest total first. */
     fun filtersFor(transactions: List<Transaction>): List<ActivityFilter> =
         listOf(ActivityFilter.All, ActivityFilter.MoneyOut, ActivityFilter.MoneyIn) +
-            transactions.groupBy { it.category }
+            transactions.groupBy { txn -> txn.customName?.let { ActivityFilter.Custom(it) } ?: ActivityFilter.Of(txn.category) }
                 .entries
                 .sortedByDescending { (_, list) -> list.sumOf { it.amountPaise } }
-                .map { ActivityFilter.Of(it.key) }
+                .map { it.key }
 
     /** Case-insensitive match against the payee, UPI ID, category, bank and account number. */
     fun matchesQuery(transaction: Transaction, query: String): Boolean {
@@ -86,7 +102,7 @@ object Activity {
             transaction.displayName,
             transaction.counterparty,
             transaction.vpa,
-            transaction.category.label,
+            transaction.categoryLabel,
             transaction.bank,
             transaction.accountTail,
             transaction.note,

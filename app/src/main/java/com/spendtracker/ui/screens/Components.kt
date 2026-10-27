@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spendtracker.R
+import com.spendtracker.data.categoryLabel
+import com.spendtracker.data.customName
 import com.spendtracker.data.Transaction
 import com.spendtracker.data.displayName
 import com.spendtracker.model.Category
@@ -174,9 +176,24 @@ fun Tile(background: Color, size: Dp = 40.dp, content: @Composable () -> Unit) {
     ) { content() }
 }
 
+/**
+ * A built-in category's icon on its colour, or, with [customName], the first letter of the user's own category
+ * on that category's colour.
+ */
 @Composable
-fun CategoryTile(category: Category, size: Dp = 40.dp) {
+fun CategoryTile(category: Category, size: Dp = 40.dp, customName: String? = null) {
     val colors = SpendTheme.colors
+    val custom = customName?.trim()?.takeIf { it.isNotEmpty() }
+    if (custom != null) {
+        Tile(colors.customTile(custom), size) {
+            Text(
+                custom.first().uppercase(),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Bold),
+                color = colors.custom(custom),
+            )
+        }
+        return
+    }
     Tile(colors.categoryTile(category), size) {
         AppIcon(categoryIcon(category), contentDescription = null, size = size * 0.6f, tint = colors.category(category))
     }
@@ -238,13 +255,13 @@ fun amountColor(transaction: Transaction): Color = when {
 @Composable
 fun TransactionRow(transaction: Transaction, onClick: () -> Unit) {
     val meta = listOfNotNull(
-        transaction.category.label,
+        transaction.categoryLabel,
         "UPI".takeIf { transaction.vpa != null },
         transaction.method?.label?.takeIf { transaction.vpa == null },
         accountLabel(transaction.bank, transaction.accountTail),
     ).joinToString(" · ")
     ListRow(
-        leading = { CategoryTile(transaction.category) },
+        leading = { CategoryTile(transaction.category, customName = transaction.customName) },
         title = transaction.displayName,
         meta = meta,
         amount = signedAmount(transaction),

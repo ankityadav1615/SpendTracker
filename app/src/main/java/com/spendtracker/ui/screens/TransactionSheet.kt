@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,13 +39,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spendtracker.R
 import com.spendtracker.data.Transaction
+import com.spendtracker.data.customName
 import com.spendtracker.data.displayName
 import com.spendtracker.data.isManual
 import com.spendtracker.model.Category
+import com.spendtracker.model.CategoryChoice
 import com.spendtracker.model.CategoryKind
+import com.spendtracker.model.CustomCategories
+import com.spendtracker.model.CustomCategoryInfo
 import com.spendtracker.model.ManualEntries
 import com.spendtracker.model.Money
 import com.spendtracker.model.TransactionType
+import com.spendtracker.parser.SmsParser
 import com.spendtracker.ui.theme.AmountStyle
 import com.spendtracker.ui.theme.SpendTheme
 import java.time.LocalDate
@@ -55,17 +61,21 @@ fun TransactionSheet(
     transaction: Transaction,
     today: LocalDate,
     onDismiss: () -> Unit,
-    onCategorySelected: (category: Category, applyToSimilar: Boolean) -> Unit,
-    onHide: () -> Unit,
+    onCategorySelected: (choice: CategoryChoice, applyToSimilar: Boolean) -> Unit,
+    onNotReal: (blockSender: Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     /** For a cash withdrawal: how much of it added cash spends already account for. */
     coveredPaise: Long = 0,
+    customCategories: List<CustomCategoryInfo> = emptyList(),
+    onCreateCategory: (String, TransactionType) -> Unit = { _, _ -> },
 ) {
     val colors = SpendTheme.colors
     val manual = transaction.isManual
+    val customName = transaction.customName
     val canRemember = !manual && transaction.counterpartyKey.isNotEmpty()
     var applyToSimilar by rememberSaveable(transaction.id) { mutableStateOf(canRemember) }
+    var confirmingNotReal by rememberSaveable(transaction.id) { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -79,7 +89,7 @@ fun TransactionSheet(
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CategoryTile(transaction.category, size = 48.dp)
+                CategoryTile(transaction.category, size = 48.dp, customName = customName)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(transaction.displayName, style = MaterialTheme.typography.titleLarge)
@@ -126,7 +136,6 @@ fun TransactionSheet(
                         accountLabel(transaction.bank, transaction.accountTail)?.let { "Account" to it },
                         transaction.vpa?.let { "UPI ID" to it },
                         transaction.refNo?.let { "Reference" to it },
-                        transaction.balancePaise?.let { "Balance after" to Money.format(it, withPaise = true) },
                         "From" to transaction.sender,
                     )
                 }
@@ -154,13 +163,25 @@ fun TransactionSheet(
                 choices.forEach { category ->
                     ChoiceChip(
                         label = category.label,
-                        selected = transaction.category == category,
-                        onClick = { onCategorySelected(category, applyToSimilar && canRemember) },
+                        selected = transaction.category == category && customName == null,
+                        onClick = { onCategorySelected(CategoryChoice(category), applyToSimilar && canRemember) },
                         icon = categoryIcon(category),
                         iconTint = colors.category(category),
                     )
                 }
             }
+            CustomCategoryChips(
+                type = transaction.type,
+                all = customCategories,
+                selected = customName,
+                onSelect = { name ->
+                    onCategorySelected(CustomCategories.choice(transaction.type, name), applyToSimilar && canRemember)
+                },
+                onCreate = { name ->
+                    onCreateCategory(name, transaction.type)
+                    onCategorySelected(CustomCategories.choice(transaction.type, name), applyToSimilar && canRemember)
+                },
+            )
             if (canRemember) {
                 Row(
                     Modifier
@@ -217,17 +238,81 @@ fun TransactionSheet(
                     .background(colors.tint)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             )
-            TextButton(onClick = onHide, modifier = Modifier.padding(top = 10.dp)) {
+            TextButton(onClick = { confirmingNotReal = true }, modifier = Modifier.padding(top = 10.dp)) {
                 AppIcon(R.drawable.ic_eye_off, contentDescription = null, size = 20.dp, tint = colors.actionText)
                 Spacer(Modifier.width(8.dp))
-                Text("Hide this transaction", style = MaterialTheme.typography.labelLarge, color = colors.actionText)
+                Text("Not a real payment", style = MaterialTheme.typography.labelLarge, color = colors.actionText)
             }
             Text(
-                "For messages that aren't real payments, like a failed or reversed one.",
+                "For offers, reward points, spam, or a payment that failed or was reversed.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.muted,
                 modifier = Modifier.padding(start = 12.dp),
             )
         }
     }
+
+    if (confirmingNotReal) {
+        NotRealDialog(
+            transaction = transaction,
+            onDismiss = { confirmingNotReal = false },
+            onConfirm = { block ->
+                confirmingNotReal = false
+                onNotReal(block)
+            },
+        )
+    }
+}
+
+@Composable
+private fun NotRealDialog(transaction: Transaction, onDismiss: () -> Unit, onConfirm: (blockSender: Boolean) -> Unit) {
+    val colors = SpendTheme.colors
+    val senderKey = SmsParser.senderKey(transaction.sender)
+    val looksLikeBank = SmsParser.isBankSender(transaction.sender)
+    var block by rememberSaveable(transaction.id) { mutableStateOf(senderKey.isNotEmpty() && !looksLikeBank) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Not a real payment?") },
+        text = {
+            Column {
+                Text(
+                    "It's hidden from your totals and lists. Nothing is deleted from your phone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (senderKey.isNotEmpty()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .padding(top = 12.dp)
+                            .toggleable(value = block, role = Role.Checkbox, onValueChange = { block = it }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = block,
+                            onCheckedChange = null,
+                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary, uncheckedColor = colors.muted),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text("Also ignore every message from $senderKey", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(
+                        if (looksLikeBank) {
+                            "$senderKey looks like your bank. Ignoring it would also hide your real payments from it."
+                        } else {
+                            "You can undo this in Settings › Blocked senders."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (looksLikeBank && block) MaterialTheme.colorScheme.error else colors.muted,
+                        modifier = Modifier.padding(start = 36.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(block && senderKey.isNotEmpty()) }) { Text("Hide", color = colors.actionText) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = colors.actionText) } },
+    )
 }

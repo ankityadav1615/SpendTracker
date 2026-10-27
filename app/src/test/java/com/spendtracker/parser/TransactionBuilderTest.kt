@@ -1,6 +1,7 @@
 package com.spendtracker.parser
 
 import com.spendtracker.model.Category
+import com.spendtracker.model.CategoryChoice
 import com.spendtracker.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -32,13 +33,25 @@ class TransactionBuilderTest {
 
     @Test
     fun rememberedCorrectionWins() {
-        val rules = mapOf(TransactionBuilder.ruleKey(TransactionType.DEBIT, "rajesh gupta") to Category.RENT)
-        assertEquals(Category.RENT, TransactionBuilder.build(imps, rules)!!.category)
+        val rules = mapOf(TransactionBuilder.ruleKey(TransactionType.DEBIT, "rajesh gupta") to CategoryChoice(Category.RENT))
+        val txn = TransactionBuilder.build(imps, rules)!!
+        assertEquals(Category.RENT, txn.category)
+        assertNull(txn.customCategory)
+    }
+
+    @Test
+    fun rememberedCustomCategoryIsApplied() {
+        val rules = mapOf(
+            TransactionBuilder.ruleKey(TransactionType.DEBIT, "rajesh gupta") to CategoryChoice(Category.DAILY, "Kids school"),
+        )
+        val txn = TransactionBuilder.build(imps, rules)!!
+        assertEquals(Category.DAILY, txn.category)
+        assertEquals("Kids school", txn.customCategory)
     }
 
     @Test
     fun correctionIsPerDirection() {
-        val rules = mapOf(TransactionBuilder.ruleKey(TransactionType.CREDIT, "rajesh gupta") to Category.SALARY)
+        val rules = mapOf(TransactionBuilder.ruleKey(TransactionType.CREDIT, "rajesh gupta") to CategoryChoice(Category.SALARY))
         assertEquals(Category.TRANSFERS, TransactionBuilder.build(imps, rules)!!.category)
     }
 

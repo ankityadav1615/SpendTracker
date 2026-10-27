@@ -17,9 +17,15 @@ data class BudgetStatus(
 
 object Budgets {
 
-    /** Matches each budget against what was actually spent in [categoryTotals], worst overspend first. */
+    /**
+     * Matches each budget against what was actually spent in [categoryTotals], worst overspend first. Spending in
+     * the user's own categories isn't held against the built-in category they're stored under.
+     */
     fun statuses(budgets: List<CategoryBudget>, categoryTotals: List<CategoryTotal>): List<BudgetStatus> {
-        val spentByCategory = categoryTotals.associate { it.category to it.amountPaise }
+        val spentByCategory = categoryTotals
+            .filterNot { it.isCustom }
+            .groupBy { it.category }
+            .mapValues { (_, totals) -> totals.sumOf { it.amountPaise } }
         return budgets
             .map { BudgetStatus(it.category, it.amountPaise, spentByCategory[it.category] ?: 0L) }
             .sortedWith(compareByDescending<BudgetStatus> { it.share }.thenBy { it.category.label })

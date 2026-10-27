@@ -1,6 +1,6 @@
 # SpendTracker privacy policy
 
-**Effective date:** 21 October 2026
+**Effective date:** 27 October 2026
 
 SpendTracker is an expense tracker for Android. It works out your spending from the SMS alerts your bank sends. This policy explains what the app reads, what it keeps, and where that data goes. In short: everything stays on your phone.
 
@@ -18,7 +18,7 @@ For each SMS recognised as a transaction, the app saves in a local database on y
 - The category, including any category you choose yourself. If you ask it to, the app also remembers your choice for that payee.
 - The sender ID and the full text of that SMS. The app uses these to show the transaction details and to avoid saving the same transaction twice.
 
-If you hide a transaction, it is kept but marked as hidden, so it does not come back on the next scan. The app also keeps your settings, such as how your spending periods are shown, any overall or per-category budgets and savings goal you set, which tips you dismissed, and when it last scanned your inbox. Recurring payments, budget progress and spending tips are worked out on your phone from the transactions already saved.
+If you mark a transaction as not a real payment, it is kept but marked as hidden, so it does not come back on the next scan. If you also block its sender, the app keeps that sender ID and the payee name you blocked it from, and ignores that sender's messages until you unblock it. Categories you create yourself are saved by name. The app also keeps your settings, such as how your spending periods are shown, any overall or per-category budgets and savings goal you set, which tips you dismissed, and when it last scanned your inbox. Recurring payments, budget progress and spending tips are worked out on your phone from the transactions already saved.
 
 If you add an expense or income yourself, the app saves what you enter: the amount, the date, the category, and the name, payment method and note if you fill them in. These entries are stored in the same local database and are deleted the same way.
 

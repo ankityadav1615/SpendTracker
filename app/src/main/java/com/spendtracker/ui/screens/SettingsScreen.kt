@@ -68,11 +68,15 @@ fun SettingsScreen(
     contentPadding: PaddingValues,
     categoryBudgetCount: Int,
     categoryRuleCount: Int,
+    customCategoryCount: Int,
+    blockedSenderCount: Int,
     onChooseIncomeType: (IncomeType) -> Unit,
     onSetPeriodMode: (PeriodMode, Int) -> Unit,
     onSetBudget: (Long?) -> Unit,
     onOpenCategoryBudgets: () -> Unit,
     onOpenCategoryRules: () -> Unit,
+    onOpenCustomCategories: () -> Unit,
+    onOpenBlockedSenders: () -> Unit,
     onSetUpSms: () -> Unit,
     onRequestPermission: () -> Unit,
     onStopSms: () -> Unit,
@@ -124,6 +128,16 @@ fun SettingsScreen(
                 ) { dialog = SettingsDialog.BUDGET }
                 RowDivider()
                 SettingsRow(
+                    "Your categories",
+                    when (customCategoryCount) {
+                        0 -> "Add your own, like Pets or Gym"
+                        1 -> "1 category"
+                        else -> "$customCategoryCount categories"
+                    },
+                    onClick = onOpenCustomCategories,
+                )
+                RowDivider()
+                SettingsRow(
                     "Category budgets",
                     if (categoryBudgetCount == 0) "Not set" else "$categoryBudgetCount " + if (categoryBudgetCount == 1) "category" else "categories",
                     onClick = onOpenCategoryBudgets,
@@ -172,6 +186,16 @@ fun SettingsScreen(
                     trailingTint = if (smsOn) MaterialTheme.colorScheme.primary else SpendTheme.colors.muted,
                     enabled = smsOn && !importing,
                     onClick = onRescan,
+                )
+                RowDivider()
+                SettingsRow(
+                    "Blocked senders",
+                    when (blockedSenderCount) {
+                        0 -> "None. Block spam from a payment's details"
+                        1 -> "1 sender ignored"
+                        else -> "$blockedSenderCount senders ignored"
+                    },
+                    onClick = onOpenBlockedSenders,
                 )
             }
         }

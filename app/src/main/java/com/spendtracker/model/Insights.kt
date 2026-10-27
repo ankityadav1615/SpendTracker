@@ -65,8 +65,8 @@ object Insights {
             val change = line.change
             if (change is Change.Up && change.percent >= SPIKE_THRESHOLD_PERCENT) {
                 CategorySpike(
-                    id = "spike:${line.category.name}",
-                    message = "${line.category.label} is up ${change.percent}% vs last period",
+                    id = if (line.isCustom) "spike:custom:${line.label}" else "spike:${line.category.name}",
+                    message = "${line.label} is up ${change.percent}% vs last period",
                     category = line.category,
                     percent = change.percent,
                 )

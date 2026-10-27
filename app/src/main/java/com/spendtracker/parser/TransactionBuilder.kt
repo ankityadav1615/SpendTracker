@@ -2,6 +2,7 @@ package com.spendtracker.parser
 
 import com.spendtracker.data.Transaction
 import com.spendtracker.model.Category
+import com.spendtracker.model.CategoryChoice
 import com.spendtracker.model.TransactionType
 import java.security.MessageDigest
 
@@ -15,7 +16,7 @@ object TransactionBuilder {
         "november", "december",
     )
 
-    fun build(sms: RawSms, rules: Map<String, Category>): Transaction? {
+    fun build(sms: RawSms, rules: Map<String, CategoryChoice>): Transaction? {
         val parsed = SmsParser.parse(sms.sender, sms.body) ?: return null
         val key = counterpartyKey(parsed.counterparty, parsed.vpa)
         val remembered = if (key.isNotEmpty()) rules[ruleKey(parsed.type, key)] else null
@@ -30,7 +31,8 @@ object TransactionBuilder {
             refNo = parsed.refNo,
             balancePaise = parsed.balancePaise,
             timestamp = sms.timestamp,
-            category = remembered ?: Categorizer.categorize(parsed, sms.body),
+            category = remembered?.category ?: Categorizer.categorize(parsed, sms.body),
+            customCategory = remembered?.customName,
             sender = sms.sender,
             body = sms.body,
             dedupeKey = dedupeKey(parsed.type, parsed.refNo, parsed.amountPaise, sms.body),
