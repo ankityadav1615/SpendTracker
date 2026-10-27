@@ -84,6 +84,7 @@ fun SettingsScreen(
     onRescan: () -> Unit,
     onSetBillReminders: (Boolean) -> Unit,
     onSetWeeklySummary: (Boolean) -> Unit,
+    onSetUpdateAlerts: (Boolean) -> Unit,
     onSetSavingsGoal: (String, Long, Long?) -> Unit,
     onClearSavingsGoal: () -> Unit,
     onOpenPrivacy: () -> Unit,
@@ -199,7 +200,7 @@ fun SettingsScreen(
                 )
             }
         }
-        item { GroupLabel("Reminders") }
+        item { GroupLabel("Notifications") }
         item {
             SettingsGroup {
                 SwitchRow(
@@ -214,6 +215,13 @@ fun SettingsScreen(
                     value = "A recap notification once a week",
                     checked = settings.weeklySummary,
                     onCheckedChange = onSetWeeklySummary,
+                )
+                RowDivider()
+                SwitchRow(
+                    title = "Update alerts",
+                    value = "Tell me when a new version is on Google Play",
+                    checked = settings.updateAlerts,
+                    onCheckedChange = onSetUpdateAlerts,
                 )
             }
         }

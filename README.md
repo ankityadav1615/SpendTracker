@@ -23,12 +23,13 @@ UPI apps and NPCI don't offer a personal transaction API, so bank SMS is the mos
 - **Learns from your corrections.** Tap any transaction to change its category. Leave *Remember for every payment to …* on, and every past and future payment to that payee is filed the same way (for example, UPI transfers to your landlord → Rent).
 - **Budgets and a savings goal.** Set a monthly budget and budgets for single categories in Settings; Home shows how much is left of each. A savings goal fills up with the money you move into *Savings & investments* after you set it.
 - **Spots repeating payments and gives tips.** Payments to the same payee for a similar amount on a steady cycle (rent, EMIs, subscriptions) are detected. Home shows dismissible tips when one is due soon, when a category goes over its budget, or when a category jumps compared with the previous period.
-- **Reminders and weekly summary.** Optional notifications the day before a repeating payment is due, and a weekly summary of your spending. Turn them on or off under *Settings → Reminders*.
+- **Reminders and weekly summary.** Optional notifications the day before a repeating payment is due, and a weekly summary of your spending. Turn them on or off under *Settings → Notifications*.
+- **Update prompts.** When Google Play has a newer version, Home shows an *Update now* banner. Play then downloads the update while you keep using the app, and *Restart now* installs it. There is also one notification per new version, which you can turn off with *Settings → Notifications → Update alerts*. This only works for copies installed from Google Play.
 - **Widget and shortcuts.** A home-screen widget shows this month's spending, top category and income. Long-press the app icon for *Add expense* and *Add income*.
 - **Receipt photos.** Attach a photo to an entry you added, from the camera app or Android's photo picker. The app needs no camera or photo permission and keeps a smaller copy in its private storage.
 - **Avoids double counting.** Credit card bill payments and transfers between your own accounts are shown but not counted as spending. Card spends are already counted when you swipe. Cash you add by hand is taken from your most recent ATM withdrawal (within 60 days), so withdrawn cash is counted once: under the categories you spent it on, with only the unaccounted rest left under *Cash withdrawal*.
 - **Ignores noise:** OTPs, payment requests, "will be debited" or "will be credited" promises, bill-due alerts, failed transactions, offers, reward and loyalty points, messages from promotional senders, and SMS from personal numbers. If something slips through, open it and tap *Not a real payment*. You can also block that sender so its messages are always ignored; undo it in *Settings → Blocked senders*.
-- **Private by design.** All data stays in a local database on the phone. The app has no internet permission, no account, no ads and no analytics, and backups are disabled. Reports you download are saved only where you choose. You can stop SMS reading and delete all data from Settings. See the [privacy policy](PRIVACY.md).
+- **Private by design.** All data stays in a local database on the phone. The app has no internet permission, no account, no ads and no analytics, and backups are disabled. Update checks are made by the Google Play Store app, not by SpendTracker. Reports you download are saved only where you choose. You can stop SMS reading and delete all data from Settings. See the [privacy policy](PRIVACY.md).
 
 ## Install the APK
 
@@ -158,7 +159,7 @@ Everything Play asks for is in [`store/`](store): the listing text and graphics 
 - [ ] **Prominent disclosure:** Play requires an in-app explanation of why SMS are read, shown before the Android permission prompt and needing an explicit "agree". The app's SMS explanation screen does this; keep it in place.
 - [ ] **Demo video:** the declaration needs a video that shows the disclosure, the permission prompt and the core feature (a bank SMS turning into a tracked transaction). Upload it to YouTube as *Unlisted* and paste the link. The recording is kept in `store/demo/`, which is git-ignored, so it isn't committed.
 - [ ] **Privacy policy URL:** <https://gist.github.com/ankityadav1615/0e29e25a7374097c857cf18d48d5ff4f> is a public copy of [PRIVACY.md](PRIVACY.md), because this repository is private. After changing `PRIVACY.md`, update it with `gh gist edit 0e29e25a7374097c857cf18d48d5ff4f PRIVACY.md`.
-- [ ] **Data safety form:** answer that the app collects no data and shares no data. All data stays on the device, and the app has no internet permission. Data that never leaves the device does not count as "collected".
+- [ ] **Data safety form:** answer that the app collects no data and shares no data. All data stays on the device, and the app has no internet permission. Data that never leaves the device does not count as "collected". Update checks go through the Google Play Store app under Play's own terms; see Google's [in-app updates data safety notes](https://developer.android.com/guide/playcore/in-app-updates#data-safety) and decide whether your answers need to change.
 - [ ] Complete the other *App content* sections: ads (none), target audience (18 and over), content rating (all "No"), advertising ID (not used), and the financial features declaration (**Support services → Other**).
 
 ## How it works
@@ -176,6 +177,7 @@ Everything Play asks for is in [`store/`](store): the listing text and graphics 
 | PDF and CSV downloads | `export/ReportDocument.kt`, `export/PdfReport.kt`, `export/CsvReport.kt` |
 | Activity filters, search and day groups | `model/Activity.kt` |
 | Settings and SMS consent | `data/SettingsStore.kt` |
+| Update banner and daily update check (Google Play in-app updates; only for Play installs, so test them with internal app sharing or a testing track) | `update/AppUpdates.kt`, `update/UpdateDecisions.kt`, `notifications/UpdateCheckWorker.kt` |
 | UI (Jetpack Compose + Material 3); design notes in [DESIGN.md](DESIGN.md) | `ui/` |
 
 Tech stack: Kotlin, Jetpack Compose, Room, and coroutines/Flow. Parser, categorizer, period, summary, activity, manual entry, report and export logic are covered by JVM unit tests in `app/src/test`. The tests use real-world SMS formats from HDFC, ICICI, SBI, Axis, Kotak, IDFC FIRST and others.

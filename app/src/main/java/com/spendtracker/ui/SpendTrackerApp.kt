@@ -221,6 +221,10 @@ private fun MainScreens(
     val importing by viewModel.importing.collectAsStateWithLifecycle()
     val exporting by viewModel.exporting.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val updateLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        viewModel.onUpdateFlowResult(it.resultCode)
+    }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(message) {
@@ -367,6 +371,10 @@ private fun MainScreens(
                     savingsGoalRequested = true
                     onTabChange(Tab.SETTINGS)
                 },
+                updateState = updateState,
+                onUpdate = { viewModel.startUpdate(updateLauncher) },
+                onDismissUpdate = viewModel::dismissUpdate,
+                onInstallUpdate = viewModel::installUpdate,
             )
 
             Tab.ACTIVITY -> ActivityScreen(
@@ -427,6 +435,10 @@ private fun MainScreens(
                 onSetWeeklySummary = { enabled ->
                     if (enabled) onRequestNotificationPermission()
                     viewModel.setWeeklySummary(enabled)
+                },
+                onSetUpdateAlerts = { enabled ->
+                    if (enabled) onRequestNotificationPermission()
+                    viewModel.setUpdateAlerts(enabled)
                 },
                 onSetSavingsGoal = viewModel::setSavingsGoal,
                 onClearSavingsGoal = viewModel::clearSavingsGoal,

@@ -1,7 +1,9 @@
 package com.spendtracker
 
 import android.app.Application
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.spendtracker.data.AppDatabase
@@ -10,8 +12,10 @@ import com.spendtracker.data.SmsImportState
 import com.spendtracker.data.TransactionRepository
 import com.spendtracker.notifications.BillReminderWorker
 import com.spendtracker.notifications.NotificationChannels
+import com.spendtracker.notifications.UpdateCheckWorker
 import com.spendtracker.notifications.WeeklySummaryWorker
 import com.spendtracker.sms.SmsInboxImporter
+import com.spendtracker.update.AppUpdates
 import com.spendtracker.widget.SpendWidget
 import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +33,7 @@ class SpendTrackerApplication : Application() {
     val repository by lazy { TransactionRepository(database, importState) }
     val inboxImporter by lazy { SmsInboxImporter(this, repository, importState) }
     val settings by lazy { SettingsStore(this) }
+    val appUpdates by lazy { AppUpdates(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -59,6 +64,13 @@ class SpendTrackerApplication : Application() {
             WeeklySummaryWorker.UNIQUE_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             PeriodicWorkRequestBuilder<WeeklySummaryWorker>(7, TimeUnit.DAYS).build(),
+        )
+        workManager.enqueueUniquePeriodicWork(
+            UpdateCheckWorker.UNIQUE_WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            PeriodicWorkRequestBuilder<UpdateCheckWorker>(1, TimeUnit.DAYS)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build(),
         )
     }
 }

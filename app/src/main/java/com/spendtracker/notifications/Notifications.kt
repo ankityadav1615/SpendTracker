@@ -26,10 +26,11 @@ object NotificationPermission {
         }
 }
 
-/** Channel ids used by the two notification workers. */
+/** Channel ids used by the notification workers. */
 object NotificationChannels {
     const val BILL_REMINDERS = "bill_reminders"
     const val WEEKLY_SUMMARY = "weekly_summary"
+    const val APP_UPDATES = "app_updates"
 
     fun ensureCreated(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -46,6 +47,13 @@ object NotificationChannels {
                 "Weekly spend summary",
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply { description = "A weekly recap of where your money went" },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                APP_UPDATES,
+                "App updates",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply { description = "Tells you when a new version of SpendTracker is on Google Play" },
         )
     }
 }

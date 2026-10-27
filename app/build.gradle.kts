@@ -39,8 +39,8 @@ android {
         applicationId = "com.devcodearmy.spendtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "3.2.0"
+        versionCode = 7
+        versionName = "3.2.1"
     }
 
     signingConfigs {
@@ -133,6 +133,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+    implementation(libs.play.app.update)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
