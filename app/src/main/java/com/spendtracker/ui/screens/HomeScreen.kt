@@ -47,6 +47,7 @@ import com.spendtracker.model.SavingsGoalStatus
 import com.spendtracker.model.UpcomingBill
 import com.spendtracker.ui.MoneyState
 import com.spendtracker.ui.theme.SpendTheme
+import com.spendtracker.update.UpdateState
 import kotlin.math.roundToInt
 
 @Composable
@@ -65,6 +66,10 @@ fun HomeScreen(
     onOpenCategory: (Category, String) -> Unit,
     onDismissInsight: (String) -> Unit = {},
     onOpenSavingsGoal: () -> Unit = {},
+    updateState: UpdateState = UpdateState.None,
+    onUpdate: () -> Unit = {},
+    onDismissUpdate: () -> Unit = {},
+    onInstallUpdate: () -> Unit = {},
 ) {
     LazyColumn(
         contentPadding = screenPadding(contentPadding),
@@ -72,6 +77,9 @@ fun HomeScreen(
     ) {
         if (state != null) {
             item { PeriodBar(state.period, onOpen = onOpenPeriods, onSelect = onSelectPeriod) }
+        }
+        if (updateState != UpdateState.None) {
+            item(key = "update") { UpdateCard(updateState, onUpdate, onDismissUpdate, onInstallUpdate) }
         }
         if (!settings.smsConsent) {
             item { SetUpSmsCard(onSetUpSms) }
@@ -99,6 +107,87 @@ fun HomeScreen(
             item { SavingsGoalCard(state.savingsGoal, onClick = onOpenSavingsGoal) }
         }
         item { WhereItWentCard(state, onOpenCategory) }
+    }
+}
+
+@Composable
+private fun UpdateCard(
+    update: UpdateState,
+    onUpdate: () -> Unit,
+    onDismiss: () -> Unit,
+    onInstall: () -> Unit,
+) {
+    val (title, body) = when (update) {
+        is UpdateState.Available -> "New version available" to "Get the latest fixes. It downloads while you keep using the app."
+        is UpdateState.Downloading -> "Downloading update" to "Keep using the app. We'll tell you when it's ready."
+        UpdateState.ReadyToInstall -> "Update ready" to "Restart SpendTracker to finish. It only takes a few seconds."
+        UpdateState.None -> return
+    }
+    SpendCard(contentPadding = PaddingValues(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 20.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Tile(MaterialTheme.colorScheme.primaryContainer) {
+                val icon = if (update == UpdateState.ReadyToInstall) R.drawable.ic_check else R.drawable.ic_download
+                AppIcon(icon, contentDescription = null, size = 20.dp, tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(
+                Modifier
+                    .weight(1f)
+                    .padding(top = 2.dp),
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            if (update is UpdateState.Available) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppIcon(R.drawable.ic_close, contentDescription = "Not now", size = 16.dp, tint = SpendTheme.colors.muted)
+                }
+            } else {
+                Spacer(Modifier.width(8.dp))
+            }
+        }
+        Column(Modifier.padding(top = 16.dp, end = 8.dp)) {
+            when (update) {
+                is UpdateState.Available -> PrimaryButton("Update now", onClick = onUpdate)
+                is UpdateState.Downloading -> {
+                    val progress = update.progress
+                    val barModifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .semantics { contentDescription = progress?.let { "Downloaded ${(it * 100).roundToInt()}%" } ?: "Downloading" }
+                    if (progress == null) {
+                        LinearProgressIndicator(barModifier, color = MaterialTheme.colorScheme.primary, trackColor = SpendTheme.colors.tint)
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = barModifier,
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = SpendTheme.colors.tint,
+                        )
+                        Text(
+                            "${(progress * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SpendTheme.colors.muted,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+                UpdateState.ReadyToInstall -> PrimaryButton("Restart now", onClick = onInstall)
+                UpdateState.None -> Unit
+            }
+        }
     }
 }
 

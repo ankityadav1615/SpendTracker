@@ -2,6 +2,8 @@ package com.spendtracker.ui
 
 import android.app.Application
 import android.net.Uri
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendtracker.SpendTrackerApplication
@@ -44,6 +46,7 @@ import com.spendtracker.model.Summary
 import com.spendtracker.model.TransactionType
 import com.spendtracker.receipts.ReceiptStorage
 import com.spendtracker.sms.SmsPermission
+import com.spendtracker.update.UpdateState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -109,6 +112,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
 
+    /** A newer version on Google Play, shown as a banner on Home. */
+    val updateState: StateFlow<UpdateState> = app.appUpdates.state
+
     private val allTransactions: StateFlow<List<Transaction>?> = repository.transactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -163,6 +169,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onResume() {
         now.value = System.currentTimeMillis()
         importSms(userRequested = false)
+        app.appUpdates.refresh()
     }
 
     /**
@@ -221,6 +228,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setWeeklySummary(enabled: Boolean) {
         settingsStore.update { it.copy(weeklySummary = enabled) }
+    }
+
+    fun setUpdateAlerts(enabled: Boolean) {
+        settingsStore.update { it.copy(updateAlerts = enabled) }
+    }
+
+    fun startUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) {
+        if (!app.appUpdates.start(launcher)) {
+            say("Couldn't open Google Play. Try again in a moment.")
+            app.appUpdates.refresh()
+        }
+    }
+
+    fun onUpdateFlowResult(resultCode: Int) {
+        app.appUpdates.onFlowResult(resultCode)
+    }
+
+    fun dismissUpdate() {
+        app.appUpdates.dismiss()
+    }
+
+    fun installUpdate() {
+        app.appUpdates.install()
     }
 
     /** Sets or edits the savings goal. Editing an existing goal keeps its original start date, so progress isn't lost. */

@@ -23,6 +23,8 @@ data class AppSettings(
     val billReminders: Boolean = false,
     /** Notify once a week with a spend summary for the past 7 days. */
     val weeklySummary: Boolean = false,
+    /** Notify when Google Play has a newer version of the app. */
+    val updateAlerts: Boolean = true,
     /** What the user is saving towards, e.g. "New laptop". Null when no goal is set. */
     val savingsGoalName: String? = null,
     val savingsGoalTargetPaise: Long? = null,
@@ -55,6 +57,7 @@ class SettingsStore(context: Context) {
             putBoolean(KEY_SMS_CONSENT, updated.smsConsent)
             putBoolean(KEY_BILL_REMINDERS, updated.billReminders)
             putBoolean(KEY_WEEKLY_SUMMARY, updated.weeklySummary)
+            putBoolean(KEY_UPDATE_ALERTS, updated.updateAlerts)
             if (updated.savingsGoalName == null) remove(KEY_GOAL_NAME) else putString(KEY_GOAL_NAME, updated.savingsGoalName)
             if (updated.savingsGoalTargetPaise == null) remove(KEY_GOAL_TARGET) else putLong(KEY_GOAL_TARGET, updated.savingsGoalTargetPaise)
             if (updated.savingsGoalDeadlineMillis == null) remove(KEY_GOAL_DEADLINE) else putLong(KEY_GOAL_DEADLINE, updated.savingsGoalDeadlineMillis)
@@ -81,6 +84,11 @@ class SettingsStore(context: Context) {
         dismissedInsightsState.value = updated
     }
 
+    /** The newest Play version code already announced by notification, so each version is announced once. */
+    var lastNotifiedUpdateVersion: Int
+        get() = prefs.getInt(KEY_LAST_NOTIFIED_UPDATE, 0)
+        set(value) = prefs.edit { putInt(KEY_LAST_NOTIFIED_UPDATE, value) }
+
     private fun read() = AppSettings(
         incomeType = IncomeType.fromName(prefs.getString(KEY_INCOME_TYPE, null)),
         periodMode = PeriodMode.entries.firstOrNull { it.name == prefs.getString(KEY_PERIOD_MODE, null) }
@@ -91,6 +99,7 @@ class SettingsStore(context: Context) {
         smsConsent = prefs.getBoolean(KEY_SMS_CONSENT, false),
         billReminders = prefs.getBoolean(KEY_BILL_REMINDERS, false),
         weeklySummary = prefs.getBoolean(KEY_WEEKLY_SUMMARY, false),
+        updateAlerts = prefs.getBoolean(KEY_UPDATE_ALERTS, true),
         savingsGoalName = prefs.getString(KEY_GOAL_NAME, null),
         savingsGoalTargetPaise = if (prefs.contains(KEY_GOAL_TARGET)) prefs.getLong(KEY_GOAL_TARGET, 0) else null,
         savingsGoalDeadlineMillis = if (prefs.contains(KEY_GOAL_DEADLINE)) prefs.getLong(KEY_GOAL_DEADLINE, 0) else null,
@@ -109,6 +118,8 @@ class SettingsStore(context: Context) {
         const val KEY_SMS_CONSENT = "sms_consent"
         const val KEY_BILL_REMINDERS = "bill_reminders"
         const val KEY_WEEKLY_SUMMARY = "weekly_summary"
+        const val KEY_UPDATE_ALERTS = "update_alerts"
+        const val KEY_LAST_NOTIFIED_UPDATE = "last_update_notified_version"
         const val KEY_GOAL_NAME = "savings_goal_name"
         const val KEY_GOAL_TARGET = "savings_goal_target_paise"
         const val KEY_GOAL_DEADLINE = "savings_goal_deadline_millis"

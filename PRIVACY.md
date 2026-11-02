@@ -31,13 +31,19 @@ You can attach a photo of a receipt to an entry you added yourself. You either t
 - **Notifications.** If you allow notifications, the app can remind you the day before a recurring bill or EMI is expected and send a weekly summary of your spending. They are created on your phone and show payee names and amounts, so depending on your Android settings they may be visible on your lock screen. Turn them off in the app's Settings or in Android settings.
 - **Widget.** If you add the SpendTracker widget to your home screen, it shows this month's spending, top category and income to anyone who can see your home screen. Remove the widget to hide it.
 
+## App updates
+
+If you installed SpendTracker from Google Play, the app asks the Google Play Store app on your phone whether a newer version is available: when you open it, and about once a day in the background. To answer, Google Play uses your device details, the installed app version and its installed parts, under the Google Play Terms of Service (<https://play.google.com/about/play-terms/>). Google says this data is encrypted, is not passed to third parties, and is deleted after a fixed period. SpendTracker itself sends nothing: none of your messages, transactions or settings are involved.
+
+When an update is available, Home shows a banner, and you get at most one notification for each new version. Updates are downloaded and installed by Google Play only when you tap **Update now**. To stop the notification, turn off **Update alerts** in the app's Settings.
+
 ## Downloaded reports
 
 When you download a report, the app creates a PDF or CSV file with the transactions and totals you chose, and saves it in the place you pick in Android's "save as" screen. If you pick a cloud folder such as Google Drive, that app uploads the file under its own privacy policy; SpendTracker itself still sends nothing. The app does not keep a copy and cannot see or delete the file afterwards; manage it like any other file on your phone.
 
 ## What the app does not do
 
-- **No internet.** The app does not have the internet permission, so it cannot send your data anywhere.
+- **No internet.** The app does not have the internet permission, so it cannot send your data anywhere. Update checks are made by the Google Play Store app, as described under "App updates".
 - **No account, no analytics, no ads.** You don't sign in, and there are no tracking, crash-reporting or advertising tools in the app.
 - **No sharing or selling.** Your data is never shared with or sold to anyone, including the developer.
 - **No backups.** Android cloud backup and device-to-device transfer are turned off for this app, so its data is not copied off the phone.

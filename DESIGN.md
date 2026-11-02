@@ -127,9 +127,11 @@ The Home headline amount is a one-off: Baloo 700 at about 56sp, with "left" or "
     what the parser really extracts; `SmsParserTest.onboardingExampleGivesTheEntryItShows` guards this.
 - **Home.** From top to bottom:
   1. The period bar.
-  2. The money-left card: the headline, one sentence of context, the spend strip and a legend.
-  3. "Where it went": categories sorted by amount, each showing its count and share.
-  4. An optional budget card.
+  2. When Google Play has a newer version, an update card: "New version available" with "Update now" and a
+     "Not now" ✕, then a progress bar while it downloads, then "Update ready" with "Restart now".
+  3. The money-left card: the headline, one sentence of context, the spend strip and a legend.
+  4. "Where it went": categories sorted by amount, each showing its count and share.
+  5. An optional budget card.
 
   Bank balances are not shown: SMS balances go stale and disagree across banks, so testers found them misleading.
   Tapping a category opens Activity filtered to it.
@@ -173,6 +175,7 @@ The Home headline amount is a one-off: Baloo 700 at about 56sp, with "left" or "
 - **Settings.** It has three grouped cards:
   - "Your money": income, periods, budget.
   - "Bank messages": SMS access, rescan.
+  - "Notifications": bill & EMI reminders, weekly summary, update alerts.
   - "Privacy": policy, licences, delete all data (in red).
 
   Each setting opens a small dialog in the app's colours.
